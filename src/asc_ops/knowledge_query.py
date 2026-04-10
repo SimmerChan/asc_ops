@@ -19,6 +19,7 @@ from .storage import ChromaDBClient, RedisClient
 from .storage.collections import CollectionType
 from .ranker import Ranker, FusionConfig, ScoredResult, QueryType, ConfidenceRanker, RankingConfig
 from .extractor.knowledge_storage import KnowledgeStorage
+from .quality import CitationTracker, FeedbackAPI
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,9 @@ class KnowledgeQueryService:
             config=RankingConfig(),
             redis_client=self._redis
         )
+        # Phase 4: 引用追踪和反馈
+        self._citation_tracker = CitationTracker(self._redis)
+        self._feedback_api = FeedbackAPI(self._redis, self._citation_tracker)
         self.base_url = base_url
 
         logger.info("KnowledgeQueryService initialized")
@@ -101,6 +105,10 @@ class KnowledgeQueryService:
         if use_confidence_ranking:
             bug_fixes = await self._apply_confidence_ranking(bug_fixes, "bug")
             optimizations = await self._apply_confidence_ranking(optimizations, "optimization")
+
+        # 记录引用 (追踪知识被查询的次数)
+        self._record_citations_for_results(bug_fixes, "bug")
+        self._record_citations_for_results(optimizations, "optimization")
 
         return DevelopmentQueryResult(
             operator_name=operator_name,
@@ -608,6 +616,26 @@ class KnowledgeQueryService:
         sorted_items = [id_to_item[item.id] for item in ranked_items if item.id in id_to_item]
 
         return sorted_items
+
+    def _record_citations_for_results(
+        self,
+        items: list,
+        item_type: str = "bug"
+    ) -> None:
+        """
+        记录查询结果的引用
+
+        Args:
+            items: 知识条目列表 (BugFixKnowledge or OptimizationKnowledge)
+            item_type: 条目类型 (bug | optimization)
+        """
+        if not items:
+            return
+
+        for item in items:
+            item_id = getattr(item, "bug_id", None) or getattr(item, "opt_id", None)
+            if item_id:
+                self._citation_tracker.record_citation(item_id, item_type)
 
     def _generate_checks(self, bug: BugFixKnowledge) -> List[str]:
         """生成建议检查项"""
