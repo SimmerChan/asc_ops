@@ -24,6 +24,23 @@ from .fusion import (
     ScoredResult,
 )
 from .bm25 import BM25Index, BM25Document
+from .scoring import (
+    RankingConfig,
+    DEFAULT_RANKING_CONFIG,
+    AuthorityScorer,
+    AuthorityScore,
+    SourceType,
+    ContributorLevel,
+    RecencyCalculator,
+    RecencyScore,
+    AccuracyCalculator,
+    AccuracyScore,
+)
+from .integrated_ranker import (
+    ConfidenceRanker,
+    CompositeScore,
+    RankedItem,
+)
 
 __all__ = [
     # Confidence
@@ -43,4 +60,19 @@ __all__ = [
     # BM25
     "BM25Index",
     "BM25Document",
+    # Scoring
+    "RankingConfig",
+    "DEFAULT_RANKING_CONFIG",
+    "AuthorityScorer",
+    "AuthorityScore",
+    "SourceType",
+    "ContributorLevel",
+    "RecencyCalculator",
+    "RecencyScore",
+    "AccuracyCalculator",
+    "AccuracyScore",
+    # Integrated Ranker
+    "ConfidenceRanker",
+    "CompositeScore",
+    "RankedItem",
 ]
