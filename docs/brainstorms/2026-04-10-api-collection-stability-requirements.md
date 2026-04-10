@@ -257,6 +257,59 @@ API: Exp
 - BM25关键词得分 × 0.3
 - 权威性/使用频率 × 0.1
 
+## Incremental Sync Requirements
+
+### Problem Frame
+
+当前增量同步方案依赖"列表页ETag变化"来判断是否有API更新。但昇腾更新单个API详情页时，列表页ETag通常不变，导致增量更新失效。
+
+### Requirements
+
+#### R15. 手动触发同步
+
+采用**人工手动触发**策略，通过CLI命令触发：
+
+```bash
+# 触发API知识同步
+python -m ascend_kb sync --api
+
+# 触发算子知识同步
+python -m ascend_kb sync --operator
+
+# 触发全量同步（所有知识库）
+python -m ascend_kb sync --all
+
+# 查看同步状态
+python -m ascend_kb sync --status
+```
+
+**触发流程：**
+1. 管理员手动运行CLI命令
+2. 重新发现API链接（检测新增API）
+3. 比对已有数据，发现变更
+4. 执行增量更新
+
+#### R16. 同步状态跟踪
+
+```bash
+# 同步状态存储在Redis
+sync:status = {
+  last_sync: timestamp,
+  synced_apis: [api_id, ...],
+  new_apis: [api_id, ...],
+  changed_apis: [{api_id, change_type}, ...],
+  deleted_apis: [api_id, ...]
+}
+```
+
+### Key Decisions (Incremental Sync)
+
+- **D13. 同步触发**: 人工手动触发（简化，不依赖自动检测）
+- **D14. CLI接口**: `python -m ascend_kb sync --api`
+- **D15. 状态跟踪**: Redis记录同步状态，支持查看
+
+---
+
 #### R14. 向量存储规格
 
 | 参数 | 值 |
@@ -264,7 +317,7 @@ API: Exp
 | 模型 | Qwen3-Embedding-4B |
 | 预估维度 | 1024维 / 1536维 |
 | 1786个API存储 | ~7MB / ~11MB (Float32) |
-| Milvus索引开销 | 2-3x |
+| ChromaDB索引开销 | 极低（嵌入式） |
 
 ## Key Decisions (Embedding)
 

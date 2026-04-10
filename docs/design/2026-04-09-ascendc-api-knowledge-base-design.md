@@ -14,7 +14,7 @@
 当前昇腾AscendC算子知识库已实现：
 - 原子化算子知识图谱（HierarchicalKV-ascend, fbgemm-ascend, ops-* 等6个算子仓）
 - 置信度感知排序层（权威性×时效性×准确性）
-- 双存储架构（Milvus向量库 + Redis KV存储）
+- 双存储架构（ChromaDB向量库 + Redis KV存储）
 - GPU→NPU跨平台适配知识（GPU算子采集 + API映射 + 适配辅助）
 - MCP接口，支持Coding Agent查询
 
@@ -390,14 +390,14 @@ P3: Conv2D/Gemm (已废弃), MMA相关, 特殊扩展接口
 P4: ISASI扩展接口, CubeResGroupHandle, KfcWorkspace
 ```
 
-### 2.3 API存储结构（Milvus + Redis）
+### 2.3 API存储结构（ChromaDB + Redis）
 
 ```python
-# Milvus Collection: ascendc_api_kb
+# ChromaDB Collection: ascendc_api_kb
 API_KB_COLLECTION = {
     "fields": [
-        {"name": "api_id", "type": "VARCHAR", "max_length": 128, "is_primary": True},
-        {"name": "embedding", "type": "FLOAT_VECTOR", "dim": 768},
+        {"name": "api_id", "type": "str", "is_primary": True},
+        {"name": "embedding", "type": "numpy.array", "dim": 1024},
 
         # 检索用字段
         {"name": "canonical_name", "type": "VARCHAR", "max_length": 64},
@@ -569,7 +569,7 @@ API视角：
 
 存储实现：
 ┌─────────────────────────────────────────────────────────────────────┐
-│ Milvus Collection: operator_api_usage                               │
+│ ChromaDB Collection: operator_api_usage                          │
 │ ├─ 字段: usage_id, operator_id, api_id, embedding,                   │
 │ │        usage_pattern, confidence                                  │
 │ └─ 索引: operator_id + api_id 联合倒排, embedding IVF               │
@@ -583,7 +583,7 @@ API视角：
 ### 3.3 使用案例存储结构
 
 ```python
-# Milvus Collection: operator_api_usage
+# ChromaDB Collection: operator_api_usage
 OPERATOR_API_USAGE_COLLECTION = {
     "fields": [
         {"name": "usage_id", "type": "VARCHAR", "max_length": 128, "is_primary": True},
@@ -1631,7 +1631,7 @@ flowchart TB
     A["Agent: 查询'向量规约API'"] --> B["查询接口层"]
     B --> C{"查询类型"}
 
-    C -->|语义查询| D["向量检索\nMilvus语义相似"]
+    C -->|语义查询| D["向量检索\nChromaDB语义相似"]
     C -->|精确查找| E["倒排索引\nRedis精确匹配"]
     C -->|关联查询| F["图遍历\n算子-API关联"]
 
@@ -1796,7 +1796,7 @@ flowchart LR
 # 复用现有双存储架构
 # ============================================
 
-# Milvus: 扩展Collection
+# ChromaDB: 扩展Collection
 EXTENDED_COLLECTIONS = {
     # 已有
     "operator_kb": { ... },  # 算子知识
@@ -2048,7 +2048,7 @@ class OperatorAPIAssociationProtocol(Protocol):
 
 ## 10. 存储变更汇总
 
-### 10.1 Milvus Collection变更
+### 10.1 ChromaDB Collection变更
 
 | Collection | 变更类型 | 说明 |
 |------------|----------|------|
@@ -2110,7 +2110,7 @@ Phase A4-A5 (接口+关联)  ─────────────────
 | **去重策略** | 三级去重（完全相同→语义相似→参考优先） | 保证质量的同时保留多样性 |
 | **关联建模** | 三元组（算子-API-使用） | 灵活支持多对多查询 |
 | **查询接口** | MCP + Python Client | 兼容Agent + 方便调试 |
-| **存储策略** | 复用现有Milvus+Redis | 降低运维复杂度 |
+| **存储策略** | 复用现有ChromaDB+Redis | 降低运维复杂度 |
 
 ---
 

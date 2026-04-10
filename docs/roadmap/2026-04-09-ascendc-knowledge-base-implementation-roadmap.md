@@ -120,7 +120,7 @@ gantt
 **目标**: 搭建双存储架构基础
 
 **交付物**:
-1. 向量库（Milvus standalone）部署完成
+1. 向量库（ChromaDB）部署完成
 2. KV存储（Redis）部署完成
 3. 基础数据模型定义（Schema）
 4. 存储层SDK封装
@@ -129,14 +129,14 @@ gantt
 
 | 任务 | 工作量 | 负责人 | 备注 |
 |------|--------|--------|------|
-| Milvus部署 | 2人天 | - | Docker Compose部署 |
+| ChromaDB部署 | 1人天 | - | pip install，进程内运行 |
 | Redis部署 | 1人天 | - | Docker Compose部署 |
 | Schema设计 | 3人天 | - | 算子节点/上下文/关联关系 |
 | SDK封装 | 5人天 | - | CRUD + 批量接口 |
 | 本地模型embedding服务 | 3人天 | - | 避免API调用延迟 |
 
 **技术选型决策**:
-- 向量库: **Milvus** (开源、本地部署、数据可控)
+- 向量库: **ChromaDB** (嵌入式、无服务、零运维)
 - KV存储: **Redis** (高读写性能、丰富数据结构)
 
 **复杂度**: 3人天 × 14天 ≈ 14人天
@@ -295,19 +295,21 @@ ConfidenceScore = w1 × AuthorityScore + w2 × RecencyScore + w3 × AccuracyScor
 
 ### 4.1 向量库选型对比
 
-| 维度 | Milvus | Pinecone | Qdrant |
-|------|--------|----------|--------|
-| 部署方式 | 本地/云 | 仅云 | 本地/云 |
-| 数据可控性 | 完全可控 | 部分受限 | 完全可控 |
-| 成本 | 硬件成本 | 按量付费 | 硬件成本 |
-| 社区活跃度 | 高 | 高 | 中高 |
-|AscendC适配 | 原生支持 | 需网络 | 原生支持 |
-| 推荐结论 | **首选** | 不推荐 | 备选 |
+| 维度 | ChromaDB | Qdrant | Milvus |
+|------|----------|--------|--------|
+| 部署方式 | 嵌入式（Python库） | Docker/本地 | Docker/分布式 |
+| 规模 | <10万向量 | 百万级 | 千万级 |
+| 运维复杂度 | 极低 | 中 | 高 |
+| 数据可控性 | 完全可控 | 完全可控 | 完全可控 |
+| 成本 | 硬件成本 | 硬件成本 | 硬件成本 |
+| 社区活跃度 | 高 | 中高 | 高 |
+|AscendC适配 | 原生支持 | 原生支持 | 原生支持 |
+| 推荐结论 | **首选（当前规模）** | 备选（扩展用） | 备选（大规模用） |
 
 **推荐理由**:
-1. 昇腾算子知识涉及内部技术，需本地部署保证数据可控
-2. Milvus社区活跃，文档完善，便于调试
-3. 支持混合检索（向量+结构化过滤）
+1. 当前规模1786 API + 万级算子知识，ChromaDB完全满足
+2. 嵌入式运行，`pip install`即可，无需独立服务
+3. 未来如需扩展到百万级向量，可平滑迁移到Qdrant
 
 ### 4.2 KV存储选型对比
 
@@ -321,7 +323,7 @@ ConfidenceScore = w1 × AuthorityScore + w2 × RecencyScore + w3 × AccuracyScor
 | 推荐结论 | **首选** | 不推荐 | 备选 |
 
 **推荐理由**:
-1. Redis与Milvus同为本地部署，网络延迟低
+1. Redis与ChromaDB同为本地部署，网络延迟低
 2. 支持丰富的数据结构（Hash/Set/Sorted Set）
 3. 生态成熟，Python客户端完善
 
@@ -332,7 +334,7 @@ ConfidenceScore = w1 × AuthorityScore + w2 × RecencyScore + w3 × AccuracyScor
 **理由**:
 1. 双存储架构已能满足核心检索需求
 2. 图数据库（如Neo4j）增加运维复杂度
-3. Milvus本身支持部分图关联能力
+3. Qdrant本身支持部分图关联能力
 
 **未来扩展接口**:
 ```python
@@ -371,7 +373,7 @@ GRAPH_DB_IMPL: GraphDBAdapter = None  # 默认为None，使用双存储模拟
 | 阶段 | 风险 | 概率 | 影响 | 风险等级 |
 |------|------|------|------|----------|
 | Phase 1 | 向量检索性能不达标 | 中 | 高 | **高** |
-| Phase 1 | Milvus集群稳定性问题 | 低 | 高 | 中 |
+| Phase 1 | ChromaDB稳定性问题 | 极低 | 高 | 低 |
 | Phase 2 | PR语义抽取准确率低 | 高 | 高 | **高** |
 | Phase 2 | 冷启动数据质量差 | 中 | 高 | **高** |
 | Phase 3 | 排序权重调参困难 | 高 | 中 | 中 |
@@ -481,7 +483,7 @@ gantt
 
 | 里程碑 | 日期 | 验收条件 |
 |--------|------|----------|
-| M1: 存储基础设施就绪 | 2026-04-28 | Milvus + Redis 部署完成，能存储/检索 |
+| M1: 存储基础设施就绪 | 2026-04-28 | ChromaDB + Redis 部署完成，能存储/检索 |
 | M2: MVP可用 | 2026-06-04 | 支持Agent查询，返回排序结果 |
 | M3: 全面上线 | 2026-06-18 | 增量同步正常运行，质量评分上线 |
 | M4: 知识库自洽 | 2026-09-01 | 知识条目 >= 500条，月活 >= 1000次 |
@@ -753,7 +755,7 @@ class IncrementalSync:
 ┌─────────────────────────────────────────────────────────────┐
 │                      双存储架构                              │
 ├─────────────────────────────────────────────────────────────┤
-│  向量库 (Milvus)              │  KV存储 (Redis)             │
+│  向量库 (ChromaDB)           │  KV存储 (Redis)             │
 │  ─────────────────────────    │  ─────────────────────────  │
 │  • 语义嵌入向量                │  • 算子原始属性              │
 │  • 相似性检索                  │  • PR元数据                  │
@@ -770,13 +772,13 @@ class IncrementalSync:
 #### 7.4.2 Schema设计
 
 ```python
-# Milvus Collection Schema
+# ChromaDB Collection Schema
 OPERATOR_KB_SCHEMA = {
     "collection_name": "operator_kb",
     "fields": [
-        {"name": "operator_id", "type": "VARCHAR", "max_length": 128, "is_primary": True},
-        {"name": "operator_name", "type": "VARCHAR", "max_length": 64},
-        {"name": "embedding", "type": "FLOAT_VECTOR", "dim": 768},
+        {"name": "operator_id", "type": "str", "is_primary": True},
+        {"name": "operator_name", "type": "str"},
+        {"name": "embedding", "type": "numpy.array", "dim": 768},
         {"name": "context_ids", "type": "ARRAY", "element_type": "VARCHAR"},
         {"name": "category", "type": "VARCHAR", "max_length": 32},
         {"name": "updated_at", "type": "BIGINT"},  # Unix timestamp
@@ -917,7 +919,7 @@ class FeedbackAPI:
 
 ### 8.2 参考资料
 
-- [Milvus Documentation](https://milvus.io/docs)
+- [ChromaDB Documentation](https://docs.trychroma.com/)
 - [Redis Data Types](https://redis.io/docs/data-types/)
 - [Retrieval Augmented Generation Best Practices](https://docs.anthropic.com/)
 
