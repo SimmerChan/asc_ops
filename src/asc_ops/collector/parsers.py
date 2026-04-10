@@ -1,0 +1,348 @@
+# Copyright 2026 SimmerChan
+# Apache 2.0 License
+
+"""
+API 详情页解析器
+
+解析 API 详情页，提取结构化信息
+支持两级降级策略：完整解析 → 降级解析 → 原始 HTML
+"""
+
+import logging
+import re
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+
+from bs4 import BeautifulSoup
+
+from ..models import (
+    AscendCAPIDefinition,
+    APIParameter,
+    APIReturnValue,
+    UsageExample,
+    APISourceInfo,
+)
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ParsingResult:
+    """解析结果"""
+    success: bool
+    api_definition: Optional[AscendCAPIDefinition] = None
+    parse_errors: List[str] = field(default_factory=list)
+    degraded: bool = False  # 是否降级解析
+    raw_html: Optional[str] = None  # 降级时保留原始 HTML
+
+
+class APIParserError(Exception):
+    """API 解析异常"""
+    pass
+
+
+class ParsingDegradedError(APIParserError):
+    """解析降级 (降级到只提取核心字段)"""
+    pass
+
+
+# API 详情页 CSS 选择器 (需要根据实际页面结构调整)
+SELECTORS = {
+    "api_name": ["h1.api-title", "h1", ".api-name", "[class*='title']"],
+    "category": ["[class*='breadcrumb']", "[class*='category']", ".nav-path"],
+    "signature": ["pre.signature", "code.signature", ".api-signature"],
+    "parameters_table": ["table.params", "table.parameters", "[class*='param']"],
+    "return_value": [".return-value", ".returns", "[class*='return']"],
+    "examples": [".example", "pre.example", "[class*='example']"],
+    "cautions": ["[class*='caution']", "[class*='warning']", ".attention"],
+    "description": ["[class*='description']", ".desc", ".content"],
+}
+
+
+def parse_api_page(
+    html: str,
+    api_id: str,
+    name: str,
+    url: str,
+    category: str = "",
+    subcategory: str = "",
+) -> ParsingResult:
+    """
+    解析 API 详情页
+
+    Args:
+        html: 页面 HTML 内容
+        api_id: API 唯一 ID
+        name: API 名称
+        url: API 页面 URL
+        category: 分类
+        subcategory: 子分类
+
+    Returns:
+        ParsingResult: 解析结果
+    """
+    errors: List[str] = []
+
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+
+        # 尝试完整解析
+        try:
+            api_def = _parse_full(soup, api_id, name, url, category, subcategory)
+            return ParsingResult(success=True, api_definition=api_def)
+        except ParsingDegradedError as e:
+            # 降级解析
+            logger.warning(f"Falling back to degraded parsing for {name}: {e}")
+            return _parse_degraded(soup, api_id, name, url, category, subcategory, str(e))
+        except Exception as e:
+            errors.append(str(e))
+            # 尝试降级解析
+            logger.warning(f"Full parsing failed for {name}, trying degraded: {e}")
+            return _parse_degraded(soup, api_id, name, url, category, subcategory, str(e))
+
+    except Exception as e:
+        logger.error(f"Failed to parse API page {url}: {e}")
+        return ParsingResult(
+            success=False,
+            parse_errors=[f"Critical parsing error: {e}"],
+        )
+
+
+def _parse_full(
+    soup: BeautifulSoup,
+    api_id: str,
+    name: str,
+    url: str,
+    category: str,
+    subcategory: str,
+) -> AscendCAPIDefinition:
+    """
+    完整解析 API 详情页
+
+    Raises:
+        ParsingDegradedError: 解析失败，触发降级
+    """
+    # 提取函数签名
+    signature = _extract_signature(soup)
+    if not signature:
+        raise ParsingDegradedError("Cannot find function signature")
+
+    # 提取参数列表
+    parameters = _extract_parameters(soup)
+    if parameters is None:
+        parameters = []  # 允许空参数
+
+    # 提取返回值
+    return_value = _extract_return_value(soup)
+    if return_value is None:
+        return_value = APIReturnValue(type="void", description="无返回值")
+
+    # 提取描述
+    description = _extract_description(soup)
+
+    # 提取使用示例
+    examples = _extract_examples(soup)
+
+    # 提取注意事项
+    cautions = _extract_cautions(soup)
+
+    return AscendCAPIDefinition(
+        api_id=api_id,
+        canonical_name=name,
+        full_signature=signature,
+        category=category,
+        subcategory=subcategory,
+        description=description,
+        parameters=parameters,
+        return_value=return_value,
+        version_info="",
+        usage_examples=examples,
+        注意事项=cautions,
+        禁忌=[],
+        source=APISourceInfo(source_type="official", source_url=url),
+        confidence=1.0,
+        last_updated=datetime.now(),
+    )
+
+
+def _parse_degraded(
+    soup: BeautifulSoup,
+    api_id: str,
+    name: str,
+    url: str,
+    category: str,
+    subcategory: str,
+    error_msg: str,
+) -> ParsingResult:
+    """
+    降级解析 - 只提取核心字段
+    """
+    # 尝试提取名称 (从页面标题)
+    page_title = soup.find("title")
+    extracted_name = page_title.get_text(strip=True) if page_title else name
+
+    # 提取面包屑分类
+    breadcrumbs = _extract_breadcrumbs(soup)
+    if breadcrumbs and not category:
+        category = breadcrumbs[0] if breadcrumbs else category
+
+    # 生成最小签名
+    signature = f"{name}()"  # 降级时使用简单签名
+
+    api_def = AscendCAPIDefinition(
+        api_id=api_id,
+        canonical_name=name,
+        full_signature=signature,
+        category=category,
+        subcategory=subcategory,
+        description=f"[降级解析] {error_msg}",
+        parameters=[],
+        return_value=APIReturnValue(type="unknown", description="解析失败"),
+        version_info="",
+        usage_examples=[],
+        注意事项=["[降级解析] 详细信息无法解析"],
+        禁忌=[],
+        source=APISourceInfo(source_type="official", source_url=url),
+        confidence=0.3,  # 低置信度
+        last_updated=datetime.now(),
+    )
+
+    return ParsingResult(
+        success=True,
+        api_definition=api_def,
+        parse_errors=[f"Degraded parsing: {error_msg}"],
+        degraded=True,
+        raw_html=str(soup)[:5000] if soup else None,  # 保留部分原始 HTML
+    )
+
+
+def _extract_signature(soup: BeautifulSoup) -> Optional[str]:
+    """提取函数签名"""
+    for selector in SELECTORS["signature"]:
+        elem = soup.select_one(selector)
+        if elem:
+            text = elem.get_text(strip=True)
+            if text and ("(" in text or "{" in text):
+                return text
+    return None
+
+
+def _extract_parameters(soup: BeautifulSoup) -> Optional[List[APIParameter]]:
+    """提取参数列表"""
+    for selector in SELECTORS["parameters_table"]:
+        table = soup.select_one(selector)
+        if table:
+            params = _parse_parameters_table(table)
+            if params is not None:
+                return params
+    return None
+
+
+def _parse_parameters_table(table) -> Optional[List[APIParameter]]:
+    """解析参数表格"""
+    params = []
+    rows = table.select("tr")
+    if not rows:
+        return None
+
+    for row in rows[1:]:  # 跳过表头
+        cols = row.select("td")
+        if len(cols) >= 2:
+            param_name = cols[0].get_text(strip=True)
+            param_type = cols[1].get_text(strip=True) if len(cols) > 1 else ""
+            param_desc = cols[2].get_text(strip=True) if len(cols) > 2 else ""
+
+            if param_name:
+                params.append(APIParameter(
+                    name=param_name,
+                    type=param_type,
+                    description=param_desc,
+                    required=True,
+                ))
+
+    return params if params else None
+
+
+def _extract_return_value(soup: BeautifulSoup) -> Optional[APIReturnValue]:
+    """提取返回值"""
+    for selector in SELECTORS["return_value"]:
+        elem = soup.select_one(selector)
+        if elem:
+            text = elem.get_text(strip=True)
+            if text:
+                # 简单解析: "返回值类型: 描述" 或 "返回: 类型"
+                return APIReturnValue(type="inferred", description=text)
+    return None
+
+
+def _extract_description(soup: BeautifulSoup) -> str:
+    """提取描述"""
+    for selector in SELECTORS["description"]:
+        elem = soup.select_one(selector)
+        if elem:
+            text = elem.get_text(strip=True)
+            if len(text) > 20:  # 排除太短的
+                return text
+    return ""
+
+
+def _extract_examples(soup: BeautifulSoup) -> List[UsageExample]:
+    """提取使用示例"""
+    examples = []
+    seen_codes: set[str] = set()  # 避免重复
+
+    for selector in SELECTORS["examples"]:
+        elems = soup.select(selector)
+        for elem in elems:
+            code = elem.get_text(strip=True)
+            if len(code) > 10 and code not in seen_codes:
+                seen_codes.add(code)
+                examples.append(UsageExample(
+                    scenario=f"示例 {len(examples) + 1}",
+                    code=code,
+                ))
+                if len(examples) >= 3:  # 最多3个示例
+                    break
+        if len(examples) >= 3:
+            break
+
+    return examples
+
+
+def _extract_cautions(soup: BeautifulSoup) -> List[str]:
+    """提取注意事项"""
+    cautions = []
+    for selector in SELECTORS["cautions"]:
+        elems = soup.select(selector)
+        for elem in elems:
+            text = elem.get_text(strip=True)
+            if text and len(text) > 5:
+                cautions.append(text)
+    return cautions
+
+
+def _extract_breadcrumbs(soup: BeautifulSoup) -> List[str]:
+    """提取面包屑导航"""
+    breadcrumbs = []
+    for selector in SELECTORS["category"]:
+        elem = soup.select_one(selector)
+        if elem:
+            # 分割面包屑文本
+            text = elem.get_text(strip=True)
+            parts = re.split(r"[>/\\]", text)
+            breadcrumbs.extend([p.strip() for p in parts if p.strip()])
+    return breadcrumbs
+
+
+def is_markdown_page(html: str) -> bool:
+    """检测是否为 Markdown 渲染页面"""
+    # Markdown 页面通常有一些特征
+    md_indicators = [
+        "<code>",
+        "<pre>",
+        "<h1>",
+        "<h2>",
+        # 检查是否主要是 pre/code 标签
+    ]
+    return any(indicator in html for indicator in md_indicators)

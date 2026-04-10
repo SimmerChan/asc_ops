@@ -5,21 +5,51 @@
 知识查询服务
 """
 
+import logging
+from dataclasses import dataclass, field
 from typing import List, Optional
+
 from .models import (
     BugFixKnowledge,
     OptimizationKnowledge,
     AscendCAPIDefinition,
     KnowledgeStats,
 )
+from .storage import ChromaDBClient, RedisClient
+from .storage.collections import CollectionType
+from .ranker import Ranker, FusionConfig, ScoredResult, QueryType
+from .extractor.knowledge_storage import KnowledgeStorage
+
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeQueryService:
     """知识查询服务"""
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(
+        self,
+        chroma_client: Optional[ChromaDBClient] = None,
+        redis_client: Optional[RedisClient] = None,
+        base_url: str = "http://localhost:8000",
+    ):
+        """
+        初始化知识查询服务
+
+        Args:
+            chroma_client: ChromaDB 客户端
+            redis_client: Redis 客户端
+            base_url: API 基础 URL (用于 API 详情获取)
+        """
+        self._chroma = chroma_client or ChromaDBClient()
+        self._redis = redis_client or RedisClient(mock=True)
+        self._storage = KnowledgeStorage(
+            chroma_client=self._chroma,
+            redis_client=self._redis,
+        )
+        self._ranker = Ranker(FusionConfig())
         self.base_url = base_url
-        # TODO: 实现实际的API调用
+
+        logger.info("KnowledgeQueryService initialized")
 
     async def query_for_development(
         self,
@@ -42,8 +72,32 @@ class KnowledgeQueryService:
         Returns:
             DevelopmentQueryResult
         """
-        # TODO: 实现
-        raise NotImplementedError("知识查询服务正在开发中")
+        bug_fixes = []
+        optimizations = []
+
+        # 查询 Bug 修复知识
+        if query_type in ("bug", "all"):
+            bug_fixes = await self._query_bugs_by_operator(
+                operator_name,
+                min_confidence=min_confidence,
+                limit=limit if query_type == "bug" else limit // 2,
+            )
+
+        # 查询优化知识
+        if query_type in ("optimization", "all"):
+            optimizations = await self._query_optimizations_by_operator(
+                operator_name,
+                min_confidence=min_confidence,
+                limit=limit if query_type == "optimization" else limit // 2,
+            )
+
+        return DevelopmentQueryResult(
+            operator_name=operator_name,
+            query_type=query_type,
+            total_count=len(bug_fixes) + len(optimizations),
+            bug_fixes=bug_fixes,
+            optimizations=optimizations,
+        )
 
     async def query_for_troubleshooting(
         self,
@@ -70,8 +124,49 @@ class KnowledgeQueryService:
         Returns:
             TroubleshootingResult
         """
-        # TODO: 实现
-        raise NotImplementedError("知识查询服务正在开发中")
+        # 构建综合查询文本
+        query_parts = [symptom]
+        if operator_name:
+            query_parts.append(operator_name)
+        if error_message:
+            query_parts.append(error_message)
+        if used_apis:
+            query_parts.extend(used_apis)
+
+        combined_query = " ".join(query_parts)
+
+        # 查询相关的 Bug 知识
+        bug_fixes = await self._query_bugs_semantic(
+            combined_query,
+            operator_name=operator_name,
+            limit=limit,
+        )
+
+        # 转换为 PossibleCause
+        possible_causes = []
+        for bug in bug_fixes:
+            possible_causes.append(PossibleCause(
+                bug_id=bug.bug_id,
+                description=bug.bug_title,
+                confidence=bug.confidence,
+                root_cause=bug.root_cause or "Unknown",
+                trigger_conditions=bug.trigger_conditions,
+                suggested_fix=bug.fix_pattern,
+                suggested_checks=self._generate_checks(bug),
+            ))
+
+        # 查询关联 API
+        related_apis = []
+        if include_api_details and used_apis:
+            for api_name in used_apis[:3]:
+                api_defs = await self.query_api(api_name=api_name, limit=1)
+                related_apis.extend(api_defs)
+
+        return TroubleshootingResult(
+            symptom=symptom,
+            possible_causes=possible_causes,
+            related_apis=related_apis if include_api_details else [],
+        )
 
     async def query_api(
         self,
@@ -96,8 +191,367 @@ class KnowledgeQueryService:
         Returns:
             API定义列表
         """
-        # TODO: 实现
-        raise NotImplementedError("知识查询服务正在开发中")
+        results = []
+
+        # 优先精确查询
+        if api_name:
+            results = await self._query_api_exact(api_name)
+            if results:
+                # 过滤类别和子类别
+                if category:
+                    results = [r for r in results if r.category == category]
+                if subcategory:
+                    results = [r for r in results if r.subcategory == subcategory]
+                return results[:limit]
+
+        # 语义搜索
+        if semantic_query:
+            results = await self._query_api_semantic(
+                semantic_query,
+                category=category,
+                subcategory=subcategory,
+                limit=limit,
+            )
+        elif not api_name:
+            # 如果都没有指定，返回空
+            return []
+
+        # 过滤示例
+        if not include_examples:
+            for api in results:
+                api.usage_examples = []
+
+        return results[:limit]
+
+    async def _query_bugs_by_operator(
+        self,
+        operator_name: str,
+        min_confidence: float = 0.5,
+        limit: int = 10,
+    ) -> List[BugFixKnowledge]:
+        """根据算子名称查询 Bug 修复知识"""
+        try:
+            # 从 Redis 获取该算子的所有 bug IDs
+            bug_ids_key = f"operator:{operator_name}:bugs"
+            bug_ids = self._redis.smembers(bug_ids_key)
+
+            if not bug_ids:
+                # 尝试模糊匹配
+                bug_ids = self._redis.smembers(f"operator:{operator_name.lower()}:bugs")
+
+            if not bug_ids:
+                return []
+
+            # 从 Redis 获取详细信息
+            bugs = []
+            for bug_id in list(bug_ids)[:limit]:
+                bug_key = f"bugfix:{bug_id}"
+                bug_data = self._redis.hgetall(bug_key)
+                if bug_data:
+                    bug = self._bug_from_redis(bug_data)
+                    if bug and bug.confidence >= min_confidence:
+                        bugs.append(bug)
+
+            return bugs
+
+        except Exception as e:
+            logger.error(f"Failed to query bugs for operator {operator_name}: {e}")
+            return []
+
+    async def _query_optimizations_by_operator(
+        self,
+        operator_name: str,
+        min_confidence: float = 0.5,
+        limit: int = 10,
+    ) -> List[OptimizationKnowledge]:
+        """根据算子名称查询优化知识"""
+        try:
+            # 从 Redis 获取该算子的所有 optimization IDs
+            opt_ids_key = f"operator:{operator_name}:opts"
+            opt_ids = self._redis.smembers(opt_ids_key)
+
+            if not opt_ids:
+                opt_ids = self._redis.smembers(f"operator:{operator_name.lower()}:opts")
+
+            if not opt_ids:
+                return []
+
+            # 从 Redis 获取详细信息
+            optimizations = []
+            for opt_id in list(opt_ids)[:limit]:
+                opt_key = f"optimization:{opt_id}"
+                opt_data = self._redis.hgetall(opt_key)
+                if opt_data:
+                    opt = self._optimization_from_redis(opt_data)
+                    if opt and opt.confidence >= min_confidence:
+                        optimizations.append(opt)
+
+            return optimizations
+
+        except Exception as e:
+            logger.error(f"Failed to query optimizations for operator {operator_name}: {e}")
+            return []
+
+    async def _query_bugs_semantic(
+        self,
+        query: str,
+        operator_name: Optional[str] = None,
+        limit: int = 5,
+    ) -> List[BugFixKnowledge]:
+        """语义查询 Bug 修复知识"""
+        try:
+            # 获取 bug_fixes collection
+            collection = self._chroma.get_collection("bug_fixes")
+
+            # 查询向量
+            results = collection.query(
+                query_texts=[query],
+                n_results=limit,
+                where={"operator_id": operator_name} if operator_name else None,
+            )
+
+            if not results or not results.get("ids"):
+                return []
+
+            bugs = []
+            for i, bug_id in enumerate(results["ids"][0]):
+                metadata = results["metadatas"][0][i] if results.get("metadatas") else {}
+                bug_key = f"bugfix:{bug_id}"
+                bug_data = self._redis.hgetall(bug_key)
+                if bug_data:
+                    bug = self._bug_from_redis(bug_data)
+                    if bug:
+                        bugs.append(bug)
+
+            return bugs
+
+        except Exception as e:
+            logger.error(f"Failed to semantic query bugs: {e}")
+            return []
+
+    async def _query_api_exact(
+        self,
+        api_name: str,
+    ) -> List[AscendCAPIDefinition]:
+        """精确查询 API"""
+        try:
+            # 获取 ascend_apis collection
+            collection = self._chroma.get_collection("ascend_apis")
+
+            # 查询
+            results = collection.get(
+                where={"canonical_name": api_name},
+            )
+
+            if not results or not results.get("ids"):
+                # 尝试模糊匹配
+                results = collection.get(
+                    where_document={"$contains": api_name},
+                )
+
+            if not results or not results.get("ids"):
+                return []
+
+            apis = []
+            for i, api_id in enumerate(results["ids"]):
+                metadata = results["metadatas"][i] if results.get("metadatas") else {}
+                document = results["documents"][i] if results.get("documents") else ""
+                api = self._api_from_chroma(api_id, metadata, document)
+                apis.append(api)
+
+            return apis
+
+        except Exception as e:
+            logger.error(f"Failed to exact query API {api_name}: {e}")
+            return []
+
+    async def _query_api_semantic(
+        self,
+        query: str,
+        category: Optional[str] = None,
+        subcategory: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[AscendCAPIDefinition]:
+        """语义查询 API"""
+        try:
+            # 获取 ascend_apis collection
+            collection = self._chroma.get_collection("ascend_apis")
+
+            # 构建 where 条件
+            where = None
+            if category or subcategory:
+                where = {}
+                if category:
+                    where["category"] = category
+                if subcategory:
+                    where["subcategory"] = subcategory
+
+            # 查询向量
+            results = collection.query(
+                query_texts=[query],
+                n_results=limit,
+                where=where,
+            )
+
+            if not results or not results.get("ids"):
+                return []
+
+            apis = []
+            for i, api_id in enumerate(results["ids"][0]):
+                metadata = results["metadatas"][0][i] if results.get("metadatas") else {}
+                document = results["documents"][0][i] if results.get("documents") else ""
+                api = self._api_from_chroma(api_id, metadata, document)
+                apis.append(api)
+
+            return apis
+
+        except Exception as e:
+            logger.error(f"Failed to semantic query APIs: {e}")
+            return []
+
+    def _bug_from_redis(self, data: dict) -> Optional[BugFixKnowledge]:
+        """从 Redis 数据构建 BugFixKnowledge"""
+        try:
+            from .models import BugSeverity, BugCategory, ExtractionMethod
+
+            severity_str = data.get("severity", "MINOR")
+            try:
+                severity = BugSeverity(severity_str)
+            except ValueError:
+                severity = BugSeverity.MINOR
+
+            category_str = data.get("category", "CORRECTNESS")
+            try:
+                category = BugCategory(category_str)
+            except ValueError:
+                category = BugCategory.CORRECTNESS
+
+            extraction_str = data.get("extraction_method", "LLM")
+            try:
+                extraction_method = ExtractionMethod(extraction_str)
+            except ValueError:
+                extraction_method = ExtractionMethod.LLM
+
+            return BugFixKnowledge(
+                bug_id=data.get("bug_id", ""),
+                operator_id=data.get("operator_id", ""),
+                source_repo=data.get("source_repo", ""),
+                source_pr=data.get("source_pr", ""),
+                bug_title=data.get("bug_title", ""),
+                symptom=data.get("symptom", ""),
+                severity=severity,
+                category=category,
+                root_cause=data.get("root_cause"),
+                trigger_conditions=data.get("trigger_conditions", "").split("|") if data.get("trigger_conditions") else [],
+                fix_pattern=data.get("fix_pattern", ""),
+                workarounds=data.get("workarounds", "").split("|") if data.get("workarounds") else [],
+                related_apis=data.get("related_apis", "").split("|") if data.get("related_apis") else [],
+                confidence=float(data.get("confidence", 0.5)),
+                extraction_method=extraction_method,
+                review_status=data.get("review_status", "pending"),
+            )
+        except Exception as e:
+            logger.error(f"Failed to parse bug data: {e}")
+            return None
+
+    def _optimization_from_redis(self, data: dict) -> Optional[OptimizationKnowledge]:
+        """从 Redis 数据构建 OptimizationKnowledge"""
+        try:
+            from .models import ExtractionMethod
+
+            extraction_str = data.get("extraction_method", "LLM")
+            try:
+                extraction_method = ExtractionMethod(extraction_str)
+            except ValueError:
+                extraction_method = ExtractionMethod.LLM
+
+            improvement = data.get("improvement_ratio")
+            improvement_ratio = float(improvement) if improvement else None
+
+            return OptimizationKnowledge(
+                opt_id=data.get("opt_id", ""),
+                operator_id=data.get("operator_id", ""),
+                source_repo=data.get("source_repo", ""),
+                source_pr=data.get("source_pr", ""),
+                opt_title=data.get("opt_title", ""),
+                optimization_type=data.get("optimization_type", "").split("|") if data.get("optimization_type") else [],
+                optimization_description=data.get("optimization_description", ""),
+                improvement_ratio=improvement_ratio,
+                related_apis=data.get("related_apis", "").split("|") if data.get("related_apis") else [],
+                confidence=float(data.get("confidence", 0.5)),
+                extraction_method=extraction_method,
+                review_status=data.get("review_status", "pending"),
+            )
+        except Exception as e:
+            logger.error(f"Failed to parse optimization data: {e}")
+            return None
+
+    def _api_from_chroma(self, api_id: str, metadata: dict, document: str) -> AscendCAPIDefinition:
+        """从 ChromaDB 数据构建 AscendCAPIDefinition"""
+        from .models import APISourceInfo, APIParameter, APIReturnValue
+
+        params = []
+        if metadata.get("parameters"):
+            try:
+                import json
+                params_data = json.loads(metadata["parameters"])
+                for p in params_data:
+                    params.append(APIParameter(
+                        name=p.get("name", ""),
+                        type=p.get("type", ""),
+                        description=p.get("description", ""),
+                        required=p.get("required", True),
+                    ))
+            except Exception:
+                pass
+
+        return_value = None
+        if metadata.get("return_value"):
+            try:
+                import json
+                rv_data = json.loads(metadata["return_value"])
+                return_value = APIReturnValue(
+                    type=rv_data.get("type", ""),
+                    description=rv_data.get("description", ""),
+                )
+            except Exception:
+                pass
+
+        source = None
+        if metadata.get("source_type"):
+            source = APISourceInfo(
+                source_type=metadata.get("source_type", "official"),
+                source_url=metadata.get("source_url", ""),
+            )
+
+        return AscendCAPIDefinition(
+            api_id=api_id,
+            canonical_name=metadata.get("canonical_name", api_id),
+            full_signature=metadata.get("full_signature", ""),
+            category=metadata.get("category", "unknown"),
+            subcategory=metadata.get("subcategory", ""),
+            description=document or metadata.get("description", ""),
+            parameters=params,
+            return_value=return_value or APIReturnValue(type="void", description=""),
+            version_info=metadata.get("version_info", ""),
+            source=source,
+            confidence=float(metadata.get("confidence", 1.0)),
+        )
+
+    def _generate_checks(self, bug: BugFixKnowledge) -> List[str]:
+        """生成建议检查项"""
+        checks = []
+
+        if bug.trigger_conditions:
+            checks.append(f"检查是否满足触发条件: {', '.join(bug.trigger_conditions[:2])}")
+
+        if bug.related_apis:
+            checks.append(f"检查相关 API 使用: {', '.join(bug.related_apis[:2])}")
+
+        if bug.workarounds:
+            checks.append(f"考虑临时规避方案: {bug.workarounds[0]}")
+
+        return checks
 
 
 @dataclass
