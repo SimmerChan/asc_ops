@@ -560,6 +560,7 @@ client.submit_feedback(
 - 2026-04-09: 多仓支持设计 — RepoRegistry、MultiRepoEventRouter、跨仓去重、权威性扩展
 - 2026-04-09: 修正算子仓列表 — 更新为实际仓库：HierarchicalKV-ascend, fbgemm-ascend, ops-math, ops-nn, ops-transformer, ops-cv
 - 2026-04-09: GPU→NPU跨平台适配 — GPU算子知识采集、跨平台知识表示、适配辅助功能
+- 2026-04-10: 补充FBGEMM→AscendC详细工作流 — 完整API调用、适配检查清单、代码框架示例
 
 ---
 
@@ -660,6 +661,149 @@ Agent：实现Matmul时遇到精度问题
 │ - AscendC: 相同精度问题 → 使用FP32累加                              │
 │ - 内存对齐在NPU上影响较小（UB自动处理）                             │
 └─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 场景三（详细）：FBGEMM → AscendC Matmul 完整工作流
+
+**Step 1: 需求输入**
+
+```
+用户：我要基于GPU的FBGEMM库实现昇腾上的高性能Matmul算子
+```
+
+**Step 2: Agent调用知识库**
+
+```python
+from ascend_kb import AscendKBClient
+client = AscendKBClient(mcp_mode=True)
+
+# 跨平台查询
+results = client.query_cross_platform(
+    operator_name="matmul",
+    adaptation_mode="gpu_to_npu",
+    source_platform="fbgemm"
+)
+
+# 获取适配建议
+suggestion = client.get_adaptation_suggestion(
+    gpu_knowledge_id="fbgemm_fp16_matmul_001",
+    target_platform="ascend"
+)
+```
+
+**Step 3: 知识库返回内容**
+
+```json
+{
+  "knowledge_id": "fbgemm_fp16_matmul_001",
+  "confidence": 0.95,
+  "platform_agnostic": {
+    "canonical_name": "matmul",
+    "core_algorithm": "分块矩阵乘法 - 64x64子块计算",
+    "optimization_patterns": [
+      {"pattern": "tiling", "tile_size": 64, "benefit": "减少Cache Miss"},
+      {"pattern": "tensor_core", "shape": "mma_m16n8k16", "benefit": "矩阵计算加速"},
+      {"pattern": "shared_memory_reuse", "size": "32KB", "benefit": "减少GlobalMemory访存"}
+    ]
+  },
+  "gpu_specific": {
+    "platform": "cuda",
+    "source_repo": "fbgemm",
+    "implementation": "...",
+    "memory_pattern": {"type": "shared", "size_bytes": 32768},
+    "tensor_core_usage": {"enabled": true, "shape": "mma_m16n8k16", "precision": "fp16"},
+    "intrinsics_used": ["wmma::load_matrix_sync", "wmma::mma_sync", "__syncthreads"]
+  },
+  "cross_platform_mapping": {
+    "gpu_to_npu_mapping": {
+      "__shared__": "LocalL1Buf",
+      "__syncthreads": "SyncAll",
+      "wmma::load_matrix_sync": "Load2D",
+      "wmma::mma_sync": "Cube",
+      "wmma::store_matrix_sync": "Store2D"
+    },
+    "optimization_equivalents": [
+      {"gpu": "shared_memory_reuse", "npu": "LocalL1Buf + LocalMemory", "guidance": "tile从64调整为32"},
+      {"gpu": "tensor_core_mma", "npu": "CubeUnit", "guidance": "shape需适配"}
+    ]
+  },
+  "adaptation_notes": [
+    {
+      "severity": "critical",
+      "description": "SharedMemory需替换为LocalL1Buf",
+      "gpu_approach": "__shared__ char smem[32768]",
+      "npu_approach": "LocalTensor<char> l1Buf = allocator.AllocL1<Char>();",
+      "recommendation": "tile从64x64调整为32x32以适配AscendC LocalL1大小"
+    },
+    {
+      "severity": "warning",
+      "description": "矩阵布局转换",
+      "gpu_approach": "row_major",
+      "npu_approach": "需转换为NPU习惯布局",
+      "recommendation": "添加布局转换层"
+    }
+  ]
+}
+```
+
+**Step 4: Agent适配检查清单**
+
+| 级别 | 检查项 | GPU代码 | NPU适配 |
+|------|--------|---------|---------|
+| **Critical** | SharedMemory替换 | `__shared__ char[32768]` | `LocalL1Buf` (tile→32) |
+| **Critical** | MMA替换 | `wmma::mma_sync` | `Cube(params, ...)` |
+| **Critical** | Tile大小调整 | 64x64 | 32x32 (LocalMemory限制) |
+| **Warning** | 线程同步 | `__syncthreads()` | `SyncAll()` |
+| **Warning** | 索引体系 | `blockIdx+threadIdx` | `GetBlockIdx+GetThreadId` |
+| **Info** | 内存对齐 | 手动64字节对齐 | UB自动处理 |
+
+**Step 5: 生成的AscendC代码框架**
+
+```cpp
+// 基于FBGEMM适配的AscendC Matmul
+// Copyright SimmerChan
+// Apache 2.0
+
+class MatmulKernel {
+public:
+    static constexpr int32_t TILE_M = 32;  // 从GPU的64调整为32
+    static constexpr int32_t TILE_N = 32;
+    static constexpr int32_t TILE_K = 32;
+
+    __aicore__ inline void Init(...) {
+        // 分配LocalL1Buf (对应GPU的__shared__)
+        this->l1BufferSize = 32 * 1024;
+    }
+
+    __aicore__ inline void Process() {
+        // 双缓冲流水线 (对应GPU的compute-commute overlap)
+        for (int32_t km = 0; km < tileNumM; km++) {
+            for (int32_t kn = 0; kn < tileNumN; kn++) {
+                LoadTiles(km, kn);   // Load2D (wmma::load_matrix_sync)
+                ComputeCube();        // Cube (wmma::mma_sync)
+                StoreTiles(km, kn);   // Store2D (wmma::store_matrix_sync)
+                SyncAll();           // __syncthreads
+            }
+        }
+    }
+};
+```
+
+**Step 6: 验证与反馈**
+
+```python
+# 提交反馈
+client.submit_feedback(
+    query_id=results.request_id,
+    entry_id="fbgemm_fp16_matmul_001",
+    action="adapted",
+    rating=5,
+    adaptation_notes={
+        "tile_size_adjusted": "64->32",
+        "layout_conversion": "added",
+        "issues_encountered": []
+    }
+)
 ```
 
 ### 6. 新增组件
