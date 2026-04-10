@@ -38,7 +38,8 @@ async def health():
     return {"status": "healthy", "version": "0.1.0"}
 
 
-# 路由（待实现）
-# from .routes import query, management
-# app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
-# app.include_router(management.router, prefix="/api/v1", tags=["management"])
+# 路由
+from .routes import query_router, management_router
+
+app.include_router(query_router, prefix="/api/v1/query", tags=["query"])
+app.include_router(management_router, prefix="/api/v1", tags=["management"])

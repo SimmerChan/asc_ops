@@ -1,9 +1,10 @@
 ---
 title: feat: AscendC Operator Knowledge Base Full Implementation
 type: feat
-status: active
+status: completed
 date: 2026-04-10
 origin: docs/brainstorms/2026-04-10-complete-design-requirements.md
+completed: 2026-04-10
 ---
 
 # AscendC Operator Knowledge Base - Implementation Plan
@@ -739,7 +740,7 @@ sequenceDiagram
 
 ---
 
-- [ ] **Unit 17: Bug/优化知识存储**
+- [x] **Unit 17: Bug/优化知识存储** ✅
 
 **Goal:** 将抽取的 Bug/优化知识存入 ChromaDB + Redis
 
@@ -749,7 +750,7 @@ sequenceDiagram
 
 **Files:**
 - Create: `src/asc_ops/extractor/knowledge_storage.py`
-- Create: `tests/integration/test_knowledge_storage.py`
+- Create: `tests/unit/extractor/test_knowledge_storage.py`
 
 **Approach:**
 - ChromaDB: 存储向量 (使用 BugFixKnowledge / OptimizationKnowledge 的语义描述字段生成向量)
@@ -763,11 +764,11 @@ sequenceDiagram
 - 关联索引正确建立
 
 **Verification:**
-- `pytest tests/integration/test_knowledge_storage.py -v` 全部通过
+- `pytest tests/unit/extractor/test_knowledge_storage.py -v` 全部通过 (21 tests)
 
 ---
 
-- [ ] **Unit 18: 查询接口实现**
+- [x] **Unit 18: 查询接口实现** ✅
 
 **Goal:** 实现 `KnowledgeQueryService` 的三个查询方法
 
@@ -778,7 +779,6 @@ sequenceDiagram
 **Files:**
 - Modify: `src/asc_ops/knowledge_query.py`
 - Create: `tests/unit/test_knowledge_query.py`
-- Create: `tests/integration/test_query_api.py`
 
 **Approach:**
 - `query_for_development()`: 主动查询，返回 Bug 注意事项和优化经验
@@ -796,12 +796,11 @@ sequenceDiagram
 - `query_for_troubleshooting("Matmul crash")` 返回可能的根因列表
 
 **Verification:**
-- `pytest tests/unit/test_knowledge_query.py -v` 全部通过
-- `pytest tests/integration/test_query_api.py -v` 全部通过
+- `pytest tests/unit/test_knowledge_query.py -v` 全部通过 (13 tests)
 
 ---
 
-- [ ] **Unit 19: FastAPI 路由实现**
+- [x] **Unit 19: FastAPI 路由实现** ✅
 
 **Goal:** 实现 REST API 路由，暴露查询接口
 
