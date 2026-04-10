@@ -622,158 +622,558 @@ OPERATOR_API_USAGE_COLLECTION = {
 
 ## 4. API知识采集方案
 
-### 4.1 采集架构
+### 4.1 官方文档结构分析（实测）
 
-```mermaid
-flowchart TB
-    subgraph OfficialSource["昇腾官方文档源"]
-        D1["AscendC API参考\n(官方HTML文档)"]
-        D2["AscendC Developer Guide\n(开发者指南)"]
-        D3["AscendC Samples\n(官方示例)"]
-        D4["AscendHub\n(模型仓库)"]
-    end
+```
+官方文档结构分析
+═══════════════════════════════════════════════════════════════════════
 
-    subgraph Collector["API知识采集层"]
-        C1["DocSpider\n文档爬虫"]
-        C2["CodeParser\n代码解析器"]
-        C3["LLMExtractor\nLLM语义抽取"]
-        C4["VersionTracker\n版本追踪"]
-    end
+【文档信息】
+- 版本: CANN社区版 9.0.0-beta.2
+- 页面总数: 1786个API详情页
+- URL模式: atlasascendc_api_07_XXXX.html (XXXX为4位序号)
 
-    subgraph Enricher["知识丰富层"]
-        E1["ExampleGenerator\n案例生成器"]
-        E2["APICategorizer\nAPI分类器"]
-        E3["UsageLinker\n使用关联器"]
-    end
+【页面类型】
+┌─────────────────────────────────────────────────────────────────────┐
+│ 类型1: API列表页                                                      │
+│ - URL: atlasascendc_api_07_0003.html (主列表)                       │
+│ - 内容: 左侧导航(完整API目录) + 右侧内容(分类概览)                   │
+│ - 作用: 提供所有API链接入口                                          │
+├─────────────────────────────────────────────────────────────────────┤
+│ 类型2: API详情页                                                      │
+│ - URL: atlasascendc_api_07_XXXX.html (如0025=Exp, 0006=LocalTensor)│
+│ - 内容: 产品支持情况 + 功能说明 + 函数原型 + 参数说明 +              │
+│         返回值说明 + 约束说明 + 调用示例                            │
+│ - 作用: 提供单个API的完整信息                                        │
+└─────────────────────────────────────────────────────────────────────┘
 
-    subgraph Storage["存储层"]
-        S1["Milvus\nAPI向量库"]
-        S2["Redis\nKV存储"]
-    end
+【API详情页结构（实测Exp页面）】
+┌─────────────────────────────────────────────────────────────────────┐
+│ Exp详情页 atlasascendc_api_07_0025.html                            │
+├─────────────────────────────────────────────────────────────────────┤
+│ 产品支持情况                                                         │
+│ ┌────────────┬───────────┐                                          │
+│ │ 产品        │ 是否支持  │                                          │
+│ ├────────────┼───────────┤                                          │
+│ │ Atlas 350  │ √         │                                          │
+│ │ Atlas A3   │ √         │                                          │
+│ │ Atlas A2   │ √         │                                          │
+│ └────────────┴───────────┘                                          │
+├─────────────────────────────────────────────────────────────────────┤
+│ 功能说明                                                             │
+│ 按元素取自然指数，计算公式如下：                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│ 函数原型（多个重载版本）                                            │
+│ template <typename T, const ExpConfig& config = DEFAULT_EXP_CONFIG>│
+│ __aicore__ inline void Exp(const LocalTensor<T>& dst,              │
+│                              const LocalTensor<T>& src,              │
+│                              const int32_t& count)                   │
+├─────────────────────────────────────────────────────────────────────┤
+│ 参数说明（模板参数 + 普通参数）                                      │
+│ - T: 操作数数据类型 (half/float)                                    │
+│ - isSetMask: 是否在接口内部设置mask                                                         │
+│ - config: Subnormal计算模式配置                                     │
+│ - dst/src/count/mask/repeatTime/repeatParams...                    │
+├─────────────────────────────────────────────────────────────────────┤
+│ 返回值说明                                                           │
+│ 约束说明                                                             │
+│ 调用示例                                                             │
+└─────────────────────────────────────────────────────────────────────┘
 
-    D1 & D2 --> C1
-    D3 --> C2
-    C1 & C2 --> C3
-    C3 --> E1
-    E1 --> E2
-    E2 --> E3
-    E3 --> S1
-    E3 --> S2
+【采集策略反思】
+❌ 错误做法: 只提取innerText前10000字符 → 只得到导航列表
+✅ 正确做法: 遍历1786个详情页URL，提取完整内容
 ```
 
-### 4.2 采集组件
+### 4.2 两阶段采集方案
+
+```
+两阶段API采集流程
+═══════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ 阶段一: 链接发现 (Link Discovery)                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  输入: API列表页URL                                                  │
+│  输出: 1786个API详情页URL及元数据                                    │
+│                                                                     │
+│  步骤:                                                               │
+│  1. 访问主列表页 atlasascendc_api_07_0003.html                      │
+│  2. 提取所有<a href="atlasascendc_api_07_XXXX.html">链接            │
+│  3. 解析链接上下文，建立分类映射                                     │
+│  4. 存储URL列表 + ETag/Last-Modified                                 │
+│                                                                     │
+│  发现结果:                                                           │
+│  - Total: 1786个API                                                 │
+│  - Categories: 基础数据结构/基础API/高阶API/SIMT/Utils/AI CPU/C API │
+│  - URL Pattern: atlasascendc_api_07_{4-digit-sequence}.html       │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ 阶段二: 详情采集 (Detail Extraction)                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  输入: 1786个API详情页URL                                           │
+│  输出: 完整API定义数据                                               │
+│                                                                     │
+│  采集内容:                                                           │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │ field              │ source                    │ extracted    │  │
+│  ├────────────────────┼───────────────────────────┼──────────────┤  │
+│  │ api_id             │ URL编号                   │ ascendc_XXX  │  │
+│  │ canonical_name     │ 页面标题/面包屑           │ Exp          │  │
+│  │ category           │ 面包屑导航               │ SIMD基础算术  │  │
+│  │ hardware_support   │ 产品支持情况表格          │ Atlas 350√  │  │
+│  │ description        │ 功能说明段落             │ 按元素取指数  │  │
+│  │ signatures         │ 函数原型(多版本)          │ 3个重载      │  │
+│  │ parameters         │ 参数说明表格              │ T/config/count│  │
+│  │ return_value       │ 返回值说明段落            │ void         │  │
+│  │ constraints        │ 约束说明段落              │ 32字节对齐   │  │
+│  │ examples           │ 调用示例代码              │ 代码块       │  │
+│  │ is_isasi           │ URL/导航标记             │ true/false   │  │
+│  │ is_deprecated      │ 页面标记                 │ true/false   │  │
+│  └────────────────────┴───────────────────────────┴──────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 4.3 采集组件设计
 
 ```python
-# API知识采集器
-class AscendCAPICollector:
-    """AscendC API知识采集器"""
+# ============================================================
+# 组件1: API链接发现器 (API Link Discoverer)
+# ============================================================
+class APILinkDiscoverer:
+    """
+    负责从API列表页发现所有API链接
+    """
 
-    def __init__(self, config: CollectorConfig):
-        self.spider = DocSpider(config.doc_urls)
-        self.parser = CodeParser()
-        self.extractor = LLMAYMCExtractor()
-        self.version_tracker = VersionTracker()
-        self.linkager = UsageLinker()
+    LIST_PAGE_URL = (
+        "https://www.hiascend.com/document/detail/zh/"
+        "CANNCommunityEdition/900beta2/API/ascendcopapi/"
+        "atlasascendc_api_07_0003.html"
+    )
 
-    async def collect_from_official_doc(self) -> List[AscendCAPIDefinition]:
-        """从官方文档采集API知识"""
-        # 1. 爬取文档
-        doc_pages = await self.spider.crawl_official_docs()
+    def __init__(self, http_client, redis_client):
+        self.http = http_client
+        self.redis = redis_client
+        self.category_parser = CategoryParser()
 
-        # 2. 解析API定义
-        api_defs = []
-        for page in doc_pages:
-            api = self.parser.parse_api_page(page)
-            api_defs.append(api)
+    async def discover(self) -> List[APILinkInfo]:
+        """
+        发现所有API链接
 
-        # 3. LLM丰富语义
-        enriched_apis = []
-        for api in api_defs:
-            enriched = await self.extractor.extract_semantics(api)
-            enriched_apis.append(enriched)
+        Returns:
+            List[APILinkInfo]: API链接信息列表
+        """
+        # 1. 检查增量更新
+        cached_etag = await self.redis.get("etag:api_list_page")
+        headers = {"If-None-Match": cached_etag} if cached_etag else {}
 
-        # 4. 版本关联
-        versioned_apis = self.version_tracker.link_versions(enriched_apis)
-
-        # 5. 生成示例
-        apis_with_examples = []
-        for api in versioned_apis:
-            examples = await self.example_generator.generate(api)
-            api.usage_examples = examples
-            apis_with_examples.append(api)
-
-        return apis_with_examples
-
-    async def collect_from_code_repos(self) -> List[OperatorAPIUsage]:
-        """从代码仓采集API使用案例"""
-        # 1. 获取算子代码
-        operator_codes = await self.code_fetcher.fetch_operator_codes()
-
-        # 2. 解析API调用
-        usages = []
-        for code in operator_codes:
-            detected_usages = self.parser.detect_api_usage(code)
-            usages.extend(detected_usages)
-
-        # 3. 关联算子和API
-        linked_usages = self.linkager.link_operator_api(usages)
-
-        # 4. 去重和聚合
-        deduplicated = self.deduplicator.deduplicate(linked_usages)
-
-        return deduplicated
-
-
-# 文档爬虫
-class DocSpider:
-    """昇腾官方文档爬虫"""
-
-    OFFICIAL_DOC_URLS = [
-        # AscendC API参考 - CANN 9.0.0-beta.2 (实测可用)
-        "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta2/API/ascendcopapi/atlasascendc_api_07_0003.html",  # API列表页
-        "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta2/API/ascendcopapi/atlasascendc_api_07_0006.html",  # LocalTensor
-        "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta2/API/ascendcopapi/atlasascendc_api_07_0012.html",  # UnaryRepeatParams
-        "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta2/API/ascendcopapi/atlasascendc_api_07_0013.html",  # BinaryRepeatParams
-        # 文档URL模式: atlasascendc_api_07_XXXX.html (XXXX为页面序号)
-        # 左侧导航包含完整API列表，页面内按功能分组
-    ]
-
-    async def crawl_official_docs(self) -> List[DocPage]:
-        """爬取官方文档"""
-        pages = []
-        for url in self.OFFICIAL_DOC_URLS:
-            # 递归爬取 + 增量更新
-            page_list = await self._crawl_with增量(url)
-            pages.extend(page_list)
-
-        return pages
-
-    async def _crawl_with增量(self, url: str) -> List[DocPage]:
-        """增量爬取（基于ETag/Last-Modified）"""
-        # 检查本地缓存的ETag
-        cached_etag = self.redis.get(f"etag:{url}")
-
-        headers = {}
-        if cached_etag:
-            headers["If-None-Match"] = cached_etag
-
-        response = await self.http_client.get(url, headers=headers)
-
+        # 2. 请求列表页
+        response = await self.http.get(self.LIST_PAGE_URL, headers=headers)
         if response.status_code == 304:
-            return []  # 无更新
+            # 无更新，返回缓存
+            return await self._get_cached_links()
 
-        # 解析页面
-        pages = self.parser.parse(response.text)
+        # 3. 解析API链接
+        html = response.text
+        links = self._parse_api_links(html)
 
-        # 更新ETag
+        # 4. 更新缓存
         new_etag = response.headers.get("ETag")
         if new_etag:
-            self.redis.set(f"etag:{url}", new_etag)
+            await self.redis.set("etag:api_list_page", new_etag)
+            await self._cache_links(links)
 
-        return pages
+        return links
+
+    def _parse_api_links(self, html: str) -> List[APILinkInfo]:
+        """
+        解析HTML中的API链接
+
+        关键：从<a>标签提取 href + 文本 + 分类上下文
+        """
+        soup = BeautifulSoup(html, "html.parser")
+
+        # 提取所有API详情页链接
+        api_links = []
+        for a_tag in soup.find_all("a", href=True):
+            href = a_tag.get("href", "")
+            if "atlasascendc_api_07_" in href and href.endswith(".html"):
+                # 解析URL获取API ID
+                api_id = self._extract_api_id(href)
+
+                # 提取链接文本（API名称）
+                name = a_tag.get_text(strip=True)
+
+                # 提取分类上下文（从父级导航结构）
+                category = self._extract_category_context(a_tag)
+
+                # 提取(ISASI)/(废弃)标记
+                is_isasi = "(ISASI)" in name
+                is_deprecated = "(废弃)" in name
+
+                api_links.append(APILinkInfo(
+                    api_id=api_id,
+                    name=name.replace("(ISASI)", "").replace("(废弃)", "").strip(),
+                    url=href,
+                    category=category,
+                    is_isasi=is_isasi,
+                    is_deprecated=is_deprecated,
+                    etag=None,
+                    last_modified=response.headers.get("Last-Modified")
+                ))
+
+        return api_links
+
+
+# ============================================================
+# 组件2: API详情提取器 (API Detail Extractor)
+# ============================================================
+class APIDetailExtractor:
+    """
+    负责从API详情页提取完整信息
+    """
+
+    def __init__(self, http_client, redis_client):
+        self.http = http_client
+        self.redis = redis_client
+        self.section_parser = SectionParser()
+
+    async def extract(self, link_info: APILinkInfo) -> AscendCAPIDefinition:
+        """
+        提取单个API的完整信息
+        """
+        # 1. 检查增量更新
+        cache_key = f"etag:api_detail:{link_info.api_id}"
+        cached_etag = await self.redis.get(cache_key)
+        headers = {"If-None-Match": cached_etag} if cached_etag else {}
+
+        # 2. 请求详情页
+        response = await self.http.get(link_info.url, headers=headers)
+        if response.status_code == 304:
+            return await self._get_cached_detail(link_info.api_id)
+
+        # 3. 解析页面内容
+        text = response.text
+        return await self._parse_detail_page(link_info, text, response.headers)
+
+    async def _parse_detail_page(
+        self,
+        link_info: APILinkInfo,
+        html: str,
+        headers: dict
+    ) -> AscendCAPIDefinition:
+        """
+        解析详情页内容
+
+        关键：从页面文本中定位各section，提取结构化信息
+        """
+        soup = BeautifulSoup(html, "html.parser")
+
+        # 提取面包屑获取API名称和分类
+        breadcrumb = self._extract_breadcrumb(soup)
+
+        # 提取更新时间
+        update_time = self._extract_update_time(soup)
+
+        # 定位主要内容区（包含函数原型的section）
+        main_content = self._find_main_content(soup)
+
+        # 解析各section
+        hardware_support = self._parse_hardware_support(main_content)
+        description = self._parse_description(main_content)
+        signatures = self._parse_signatures(main_content)
+        parameters = self._parse_parameters(main_content)
+        return_value = self._parse_return_value(main_content)
+        constraints = self._parse_constraints(main_content)
+        examples = self._parse_examples(main_content)
+
+        return AscendCAPIDefinition(
+            api_id=link_info.api_id,
+            canonical_name=link_info.name,
+            full_signatures=signatures,
+            category=self._derive_category(breadcrumb),
+            subcategory=self._derive_subcategory(breadcrumb),
+            description=description,
+            parameters=parameters,
+            return_value=return_value,
+            version_info=APIVersionInfo(
+                introduced_version="9.0.0-beta.2",
+                last_updated=update_time
+            ),
+            usage_examples=[UsageExample(code_snippet=ex) for ex in examples],
+            注意事项=self._extract_notes(constraints),
+            禁忌=[],
+            source=APISourceInfo(
+                source_type="official_doc",
+                doc_url=link_info.url,
+                authority_score=1.0,
+                last_verified=datetime.now()
+            ),
+            confidence=1.0 if not link_info.is_deprecated else 0.7,
+            last_updated=update_time,
+            embedding=[],  # 待向量化
+            is_isasi=link_info.is_isasi,
+            is_deprecated=link_info.is_deprecated,
+            hardware_support=hardware_support
+        )
+
+
+# ============================================================
+# 组件3: 页面区块解析器 (Section Parser)
+# ============================================================
+class SectionParser:
+    """
+    解析API详情页中的各个区块
+    """
+
+    def _extract_breadcrumb(self, soup) -> List[str]:
+        """提取面包屑导航"""
+        breadcrumb_section = soup.find("section", class_="article-bread")
+        if breadcrumb_section:
+            # 格式: CANN社区版 > Ascend C算子开发接口 > SIMD API > 基础API > Memory矢量计算 > 基础算术 > Exp
+            text = breadcrumb_section.get_text()
+            return [x.strip() for x in text.split(">")]
+        return []
+
+    def _parse_hardware_support(self, content) -> Dict[str, bool]:
+        """解析产品支持情况表格"""
+        result = {}
+        # 查找"产品支持情况"后的表格
+        # 表格格式: | 产品 | 是否支持 |
+        table = content.find("table")
+        if table:
+            rows = table.find_all("tr")
+            for row in rows[1:]:  # 跳过表头
+                cols = row.find_all(["td", "th"])
+                if len(cols) >= 2:
+                    product = cols[0].get_text(strip=True)
+                    support = "√" in cols[1].get_text() or "支持" in cols[1].get_text()
+                    result[product] = support
+        return result
+
+    def _parse_signatures(self, content) -> List[Dict]:
+        """
+        解析函数原型
+
+        返回格式:
+        [{
+            "template_params": {"T": "数据类型", "config": "配置"},
+            "signature": "void Exp(LocalTensor<T> dst, LocalTensor<T> src)",
+            "description": "tensor前n个数据计算"
+        }]
+        """
+        signatures = []
+
+        # 查找"函数原型"标题后的所有<code>或<pre>区块
+        sig_section = content.find(string=lambda t: "函数原型" in str(t))
+        if sig_section:
+            parent = sig_section.find_parent()
+            code_blocks = parent.find_all_next(["code", "pre"], limit=10)
+
+            for block in code_blocks:
+                text = block.get_text(strip=True)
+                if "template" in text or "__aicore__" in text:
+                    signatures.append({
+                        "template_params": self._parse_template_params(text),
+                        "signature": self._parse_signature(text),
+                        "description": self._extract_sig_description(block)
+                    })
+
+        return signatures
+
+    def _parse_parameters(self, content) -> List[APIParameter]:
+        """解析参数说明表格"""
+        params = []
+
+        # 查找"参数说明"后的表格
+        param_section = content.find(string=lambda t: "参数说明" in str(t))
+        if param_section:
+            table = param_section.find_parent().find_next("table")
+            if table:
+                rows = table.find_all("tr")
+                for row in rows[1:]:  # 跳过表头
+                    cols = row.find_all("td")
+                    if len(cols) >= 3:
+                        params.append(APIParameter(
+                            name=cols[0].get_text(strip=True),
+                            param_type=cols[1].get_text(strip=True),
+                            description=cols[2].get_text(strip=True),
+                            is_required=True,
+                            default_value=None,
+                            constraints=[],
+                            valid_range=None,
+                            usage_pattern=""
+                        ))
+
+        return params
+
+
+# ============================================================
+# 组件4: 批量采集调度器 (Batch Collector Scheduler)
+# ============================================================
+class APICollectorScheduler:
+    """
+    调度批量采集任务，支持断点续采
+    """
+
+    BATCH_SIZE = 50  # 每批50个API
+    RATE_LIMIT_DELAY = 0.5  # 请求间隔0.5秒
+
+    def __init__(self, discoverer: APILinkDiscoverer,
+                 extractor: APIDetailExtractor,
+                 redis_client):
+        self.discoverer = discoverer
+        self.extractor = extractor
+        self.redis = redis_client
+        self.progress_key = "progress:api_collection"
+
+    async def run_full_collection(self):
+        """
+        执行全量采集
+        """
+        # Step 1: 发现所有链接
+        links = await self.discoverer.discover()
+        total = len(links)
+
+        # Step 2: 获取已采集进度
+        completed = await self._get_completed_ids()
+
+        # Step 3: 批量采集
+        for i in range(0, total, self.BATCH_SIZE):
+            batch = links[i:i + self.BATCH_SIZE]
+            for link in batch:
+                if link.api_id in completed:
+                    continue
+
+                # 提取详情
+                detail = await self.extractor.extract(link)
+
+                # 存储
+                await self._store_detail(detail)
+                completed.add(link.api_id)
+                await self._save_progress(link.api_id)
+
+                # 限速
+                await asyncio.sleep(self.RATE_LIMIT_DELAY)
+
+            # 每批结束打印进度
+            logger.info(f"Progress: {len(completed)}/{total}")
+
+    async def run_incremental_collection(self):
+        """
+        执行增量采集（每日定时任务）
+        """
+        # Step 1: 检查列表页是否有更新
+        links = await self.discoverer.discover()
+
+        # Step 2: 找出新增/变更的API
+        changed = []
+        for link in links:
+            current_etag = await self.redis.get(f"etag:api:{link.api_id}")
+            if current_etag != link.etag:
+                changed.append(link)
+
+        # Step 3: 重新采集变更的API
+        for link in changed:
+            detail = await self.extractor.extract(link)
+            await self._store_detail(detail)
+            await self.redis.set(f"etag:api:{link.api_id}", link.etag)
+
+        return len(changed)
 ```
 
-### 4.3 版本追踪机制
+### 4.4 采集策略
+
+```
+采集策略
+═══════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ 数据源               │ 采集方式              │ 频率    │ 内容         │
+├──────────────────────┼───────────────────────┼─────────┼─────────────┤
+│ 昇腾官方API文档      │ 两阶段采集            │ 每日    │ API详情     │
+│ (1786个API详情页)   │ 链接发现→详情提取      │         │ 签名/参数   │
+├──────────────────────┼───────────────────────┼─────────┼─────────────┤
+│ 昇腾算子仓(6个)     │ Git Webhook+代码解析  │ 实时    │ API使用案例 │
+├──────────────────────┼───────────────────────┼─────────┼─────────────┤
+│ AscendC Samples     │ Git解析               │ 每周    │ 参考示例    │
+└──────────────────────┴───────────────────────┴─────────┴─────────────┘
+
+【关键设计决策】
+1. 两阶段分离：链接发现(1次) vs 详情提取(1786次)
+2. 断点续采：Redis存储进度，支持中断后恢复
+3. 增量优先：基于ETag检测变化，只采集变更项
+4. 并发控制：50个一批，请求间隔0.5秒，避免限流
+```
+
+### 4.5 增量同步机制
+
+```python
+# 增量同步管理器
+class IncrementalSyncManager:
+    """
+    管理API知识的增量同步
+    """
+
+    def __init__(self, redis_client, collector: APICollectorScheduler):
+        self.redis = redis_client
+        self.collector = collector
+
+    async def check_and_sync(self) -> SyncResult:
+        """
+        检查更新并同步
+
+        Returns:
+            SyncResult: 同步结果
+        """
+        # 1. 检查列表页ETag
+        list_etag = await self._fetch_list_etag()
+        cached_etag = await self.redis.get("etag:api_list_page")
+
+        if list_etag == cached_etag:
+            return SyncResult(has_changes=False, changed_count=0)
+
+        # 2. 发现变更
+        changed_apis = await self._discover_changed_apis()
+
+        # 3. 增量采集
+        for api in changed_apis:
+            await self.collector.extractor.extract(api)
+            await self._update_cached_etag(api)
+
+        # 4. 更新列表页ETag
+        await self.redis.set("etag:api_list_page", list_etag)
+
+        return SyncResult(
+            has_changes=True,
+            changed_count=len(changed_apis),
+            api_ids=[a.api_id for a in changed_apis]
+        )
+
+    async def schedule_daily_sync(self):
+        """
+        每日定时同步任务
+        """
+        while True:
+            now = datetime.now()
+            # 计算到下一个凌晨4点的时间
+            target = now.replace(hour=4, minute=0, second=0, microsecond=0)
+            if target < now:
+                target += timedelta(days=1)
+            wait_seconds = (target - now).total_seconds()
+
+            await asyncio.sleep(wait_seconds)
+
+            result = await self.check_and_sync()
+            if result.has_changes:
+                await self._notify_changes(result)
+```
+
+### 4.6 版本追踪机制
 
 ```python
 # API版本追踪器
@@ -824,15 +1224,6 @@ class APIVersionTracker:
 
         return evolutions
 ```
-
-### 4.4 采集策略
-
-| 数据源 | 采集方式 | 频率 | 内容 |
-|--------|----------|------|------|
-| 昇腾官方API文档 | Web爬虫 + 增量检测 | **每日** | API定义、签名、参数、返回值 |
-| AscendC Developer Guide | Web爬虫 | **每日** | 使用指南、最佳实践 |
-| 昇腾算子仓（6个） | Git Webhook + 解析 | **实时** | API使用案例 |
-| AscendC Samples | Git解析 | **每周** | 参考实现示例 |
 
 ---
 

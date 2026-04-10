@@ -562,7 +562,8 @@ client.submit_feedback(
 - 2026-04-09: GPU→NPU跨平台适配 — GPU算子知识采集、跨平台知识表示、适配辅助功能
 - 2026-04-10: 补充FBGEMM→AscendC详细工作流 — 完整API调用、适配检查清单、代码框架示例
 - 2026-04-10: AscendC API知识库 — API参考文档采集、算子使用案例关联、三角知识体系
-- 2026-04-10: AscendC API文档实测 — 通过browser-use成功提取CANN 9.0.0-beta.2官方API文档结构，发现实际API分类（SIMD基础/Memory搬运/矩阵计算/矢量计算/Reg计算/资源管理/同步控制/缓存控制/原子操作/调试接口/高阶API），更新API分类体系和DocSpider URL配置
+- 2026-04-10: AscendC API文档实测 — 通过browser-use成功提取CANN 9.0.0-beta.2官方API文档结构，发现1786个API详情页、完整6大类API分类、详情页内容结构（产品支持/功能说明/函数原型/参数说明/返回值/约束/调用示例）
+- 2026-04-10: API采集方案重新设计 — 两阶段采集(链接发现→详情提取)、APILinkDiscoverer/APIDetailExtractor/SectionParser/APICollectorScheduler组件设计、断点续采/增量同步/版本追踪机制
 
 ---
 
