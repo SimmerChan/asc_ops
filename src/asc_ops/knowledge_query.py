@@ -5,6 +5,7 @@
 知识查询服务
 """
 
+from dataclasses import dataclass, field
 from typing import List, Optional
 from .models import (
     BugFixKnowledge,

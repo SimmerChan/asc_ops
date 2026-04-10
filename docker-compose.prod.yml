@@ -3,11 +3,15 @@
 
 version: '3.8'
 
+# 生产环境 Docker Compose 配置
+# 使用多阶段构建的生产镜像
+
 services:
   asc_ops:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.app
+      target: production
     container_name: asc_ops
     ports:
       - "8000:8000"
@@ -15,12 +19,20 @@ services:
       - CHROMA_DB_PATH=/data/chroma_db
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_DB=0
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - DEFAULT_PROVIDER=anthropic
       - EMBEDDING_MODEL_NAME=all-MiniLM-L6-v2
+      - EMBEDDING_BATCH_SIZE=32
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8000
+      - SERVER_DEBUG=false
       - SERVER_LOG_LEVEL=INFO
+      - USE_MOCK_STORAGE=false
     volumes:
-      - ./data/chroma_db:/data/chroma_db
-      - ./data/redis:/data/redis
+      - asc_ops_chroma_data:/data/chroma_db
+      - asc_ops_redis_data:/data/redis
     depends_on:
       redis:
         condition: service_healthy
@@ -30,7 +42,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 40s
 
   redis:
     image: redis:7-alpine
@@ -38,8 +50,8 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - ./data/redis:/data
-    command: redis-server --appendonly yes
+      - asc_ops_redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -47,7 +59,7 @@ services:
       timeout: 5s
       retries: 3
 
-  # Optional: Redis management UI
+  # Redis 缓存管理 UI (可选)
   redisinsight:
     image: redis/redisinsight:latest
     container_name: asc_ops_redis_ui
@@ -58,3 +70,9 @@ services:
     restart: unless-stopped
     profiles:
       - tools
+
+volumes:
+  asc_ops_chroma_data:
+    driver: local
+  asc_ops_redis_data:
+    driver: local
