@@ -1,0 +1,31 @@
+# Copyright 2026 SimmerChan
+# Apache 2.0 License
+
+# Core dependencies
+chromadb>=0.4.22
+redis>=5.0.0
+pydantic>=2.0.0
+httpx>=0.25.0
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+
+# Data processing
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Embedding and ML
+sentence-transformers>=2.2.0
+
+# LLM (choose one or both)
+anthropic>=0.18.0
+# openai>=1.0.0
+
+# Optional: Monitoring
+prometheus-client>=0.19.0
+
+# Development
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+black>=24.0.0
+ruff>=0.1.0

@@ -1,0 +1,60 @@
+# Copyright 2026 SimmerChan
+# Apache 2.0 License
+
+version: '3.8'
+
+services:
+  asc_ops:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: asc_ops
+    ports:
+      - "8000:8000"
+    environment:
+      - CHROMA_DB_PATH=/data/chroma_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data/chroma_db:/data/chroma_db
+      - ./data/redis:/data/redis
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: asc_ops_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Optional: Redis management UI
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: asc_ops_redis_ui
+    ports:
+      - "8080:8000"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    profiles:
+      - tools
