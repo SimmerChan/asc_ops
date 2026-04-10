@@ -421,6 +421,85 @@ Agent查询 → 意图识别 → 路由到对应知识库 → 合并返回
 - **D6. 跨库查询方案**: 查询路由，不引入图数据库
 - **D7. 优先级**: 算子→API (P1) → GPU→NPU映射 (P2) → 跨库查询 (P3)
 
+---
+
+## NPU Bug修复与优化知识设计
+
+### Problem Frame
+
+昇腾算子知识库需要支持Agent进行**开发参考**和**问题排查**。当前设计缺少：
+1. Bug修复知识的结构化表示
+2. 优化知识的组织方式
+3. Agent如何使用这些知识
+
+### Requirements
+
+#### R17. Bug修复知识建模
+
+**数据结构**：
+```python
+BugFixKnowledge {
+    bug_id, operator_id, source_pr,
+    symptom, root_cause, trigger_conditions,
+    fix_pattern, related_apis,
+    severity, confidence
+}
+```
+
+**存储**：ChromaDB (向量检索) + Redis (精确索引)
+
+#### R18. 优化知识建模
+
+**数据结构**：
+```python
+OptimizationKnowledge {
+    opt_id, operator_id, source_pr,
+    optimization_type[], optimization_description,
+    improvement_ratio (可选),
+    related_apis
+}
+```
+
+**量化指标**：可选字段，有则记录
+
+#### R19. PR采样分析
+
+**采样范围**：6个昇腾仓全部采样（100 PR/仓）
+
+**分析指标**：
+- Bugfix PR占比
+- 根因/触发条件/修复方案提及率
+
+#### R20. Agent查询接口
+
+**双模式**：
+| 模式 | 触发 | 返回 |
+|------|------|------|
+| 主动查询 | Agent开发前 | Bug注意事项 + 优化经验 |
+| 被动查询 | Agent遇问题时 | 可能原因 + 建议检查项 |
+
+#### R21. 实施优先级
+
+| Phase | 内容 | 工作量 |
+|-------|------|--------|
+| Phase 0 | PR采样分析 | 1-2天 |
+| Phase 1 | Bug知识模型+抽取 | 3-5天 |
+| Phase 2 | 优化知识模型+抽取 | 2-3天 |
+| Phase 3 | 主动/被动查询接口 | 4-6天 |
+
+### Key Decisions
+
+- **D16. Bug知识来源**: 先采样后建模（PR信息量未知）
+- **D17. 查询场景**: 主动+被动双模式
+- **D18. 量化指标**: 可选字段，非强制
+- **D19. GPU Bug知识**: 暂不采集，聚焦NPU侧
+
+### Dependencies
+
+- 依赖PR分类器（bugfix / optimization / feature）
+- 依赖LLM语义抽取能力
+- 依赖ChromaDB + Redis双存储
+
 ## Next Steps
 
 → `/ce:plan` for structured implementation planning

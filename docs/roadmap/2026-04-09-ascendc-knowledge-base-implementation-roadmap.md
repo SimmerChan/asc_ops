@@ -111,8 +111,10 @@ gantt
     置信度排序层           :a4, after a3, 14d
     section Phase 4
     质量评分体系           :a5, after a4, 14d
+    section Phase 5
+    Bug/优化知识设计       :a6, after a5, 18d
     section 持续迭代
-    知识库运营             :2026-07-01, 180d
+    知识库运营             :2026-07-15, 180d
 ```
 
 ### 3.2 Phase 1: 基础设施（14天）
@@ -288,6 +290,61 @@ ConfidenceScore = w1 × AuthorityScore + w2 × RecencyScore + w3 × AccuracyScor
 | Dashboard | 5人天 | - | 质量监控面板 |
 
 **复杂度**: 4人天 × 14天 ≈ 14人天
+
+### 3.7 Phase 5: Bug/优化知识设计（18天）
+
+**目标**: 支持Agent进行开发参考和问题排查
+
+**前置条件**: Phase 2 (原子化知识图谱)
+
+**交付物**:
+1. Bug修复知识模型和抽取Pipeline
+2. 优化知识模型和抽取Pipeline
+3. 主动查询接口（开发参考）
+4. 被动查询接口（问题排查）
+5. PR采样分析报告
+
+**实施细节**:
+
+| 任务 | 工作量 | 负责人 | 备注 |
+|------|--------|--------|------|
+| PR采样分析 | 2人天 | - | 6个仓各100个PR |
+| Bug知识模型 | 1人天 | - | BugFixKnowledge |
+| Bug知识抽取 | 4人天 | - | LLM语义抽取 |
+| 优化知识模型 | 1人天 | - | OptimizationKnowledge |
+| 优化知识抽取 | 3人天 | - | LLM语义抽取 |
+| 主动查询接口 | 3人天 | - | 开发参考场景 |
+| 被动查询接口 | 3人天 | - | 问题排查场景 |
+| 集成测试 | 2人天 | - | 端到端测试 |
+
+**复杂度**: 3人天 × 18天 ≈ 18人天
+
+**阶段依赖**:
+
+```
+Phase 5 依赖关系:
+┌─────────────────────────────────────────────────────────┐
+│                                                          │
+│  Phase 0 (采样分析) ─────────────────────────────┐     │
+│         │                                           │     │
+│         │ 1-2天                                      │     │
+│         ▼                                           │     │
+│  Phase 1 (Bug知识) ◄───────────────────────────────┘     │
+│         │                                               │
+│         │ 3-5天                                        │
+│         ▼                                               │
+│  Phase 2 (优化知识)                                     │
+│         │                                               │
+│         │ 2-3天                                        │
+│         ▼                                               │
+│  Phase 3 (主动查询) ───────────────────────────────┐     │
+│         │                                           │     │
+│         │ 2-3天                                     │     │
+│         ▼                                           │     │
+│  Phase 4 (被动查询) ◄───────────────────────────────┘     │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -474,9 +531,11 @@ gantt
     Phase 2b (2 FTE)   :2026-05-01, 2026-05-21
     Phase 3 (2 FTE)    :2026-05-22, 2026-06-04
     Phase 4 (1 FTE)    :2026-06-05, 2026-06-18
+    Phase 5 (1 FTE)    :2026-06-19, 2026-07-03
     section 里程碑
     MVP交付    :milestone1, 2026-06-04, 0d
     全面上线    :milestone2, 2026-06-18, 0d
+    Bug/优化知识就绪 :milestone3, 2026-07-03, 0d
 ```
 
 ### 6.3 关键里程碑
@@ -486,7 +545,8 @@ gantt
 | M1: 存储基础设施就绪 | 2026-04-28 | ChromaDB + Redis 部署完成，能存储/检索 |
 | M2: MVP可用 | 2026-06-04 | 支持Agent查询，返回排序结果 |
 | M3: 全面上线 | 2026-06-18 | 增量同步正常运行，质量评分上线 |
-| M4: 知识库自洽 | 2026-09-01 | 知识条目 >= 500条，月活 >= 1000次 |
+| M4: Bug/优化知识就绪 | 2026-07-03 | Bug知识≥200条，优化知识≥100条 |
+| M5: 知识库自洽 | 2026-09-01 | 知识条目 >= 500条，月活 >= 1000次 |
 
 ---
 
@@ -904,6 +964,163 @@ class FeedbackAPI:
         return True
 ```
 
+### 7.6 Phase 5: Bug/优化知识设计 - 实施细节
+
+#### 7.6.1 PR采样分析
+
+```python
+# scripts/sample_pr_analysis.py
+"""
+昇腾仓PR采样分析脚本
+"""
+
+REPOS = [
+    {"name": "HierarchicalKV-ascend", "sample_size": 100},
+    {"name": "fbgemm-ascend", "sample_size": 100},
+    {"name": "ops-math", "sample_size": 100},
+    {"name": "ops-nn", "sample_size": 100},
+    {"name": "ops-transformer", "sample_size": 80},
+    {"name": "ops-cv", "sample_size": 80},
+]
+
+ANALYSIS_METRICS = [
+    "bugfix_pr_ratio",           # Bugfix PR占比
+    "avg_description_length",    # 平均描述长度
+    "root_cause_mention_rate",  # 根因提及率
+    "trigger_mention_rate",     # 触发条件提及率
+    "fix_detail_mention_rate", # 修复详情提及率
+]
+```
+
+#### 7.6.2 Bug知识数据模型
+
+```python
+class BugFixKnowledge:
+    """NPU算子Bug修复知识"""
+    bug_id: str                       # 唯一标识
+    operator_id: str                  # 关联算子
+    source_repo: str                 # 来源仓
+    source_pr: str                   # 来源PR号
+
+    # Bug描述
+    bug_title: str                   # Bug简短描述
+    symptom: str                     # 表现
+    severity: BugSeverity           # critical/major/minor
+    category: BugCategory            # correctness/performance/numerical/memory/sync
+
+    # 根因与触发
+    root_cause: Optional[str]        # 根因
+    trigger_conditions: List[str]   # 触发条件
+
+    # 修复方案
+    fix_pattern: str                 # 修复模式
+    fix_code_hints: List[str]       # 代码提示
+    workarounds: List[str]          # 临时规避
+
+    # 关联
+    related_apis: List[str]          # 涉及API
+
+    # 元数据
+    confidence: float                 # 置信度
+    extraction_method: str           # llm/manual/pattern
+```
+
+#### 7.6.3 优化知识数据模型
+
+```python
+class OptimizationKnowledge:
+    """NPU算子优化知识"""
+    opt_id: str
+    operator_id: str
+    source_repo: str
+    source_pr: str
+
+    opt_title: str                  # 优化标题
+    optimization_type: List[str]    # 分块/流水/向量化...
+    optimization_description: str   # 优化方案
+
+    # 量化指标（可选）
+    improvement_ratio: Optional[float]  # 提升比例
+    before_metrics: Optional[dict]     # 优化前指标
+    after_metrics: Optional[dict]       # 优化后指标
+
+    related_apis: List[str]
+    confidence: float
+```
+
+#### 7.6.4 PR分类器
+
+```python
+class PRClassifier:
+    """PR类型分类器"""
+
+    BUG_KEYWORDS = ["fix", "bug", "修复", "crash", "error", "精度", ...]
+    OPTIMIZATION_KEYWORDS = ["optimize", "perf", "优化", "加速", ...]
+
+    def classify(self, title: str, description: str) -> str:
+        """返回: bugfix | optimization | feature"""
+        # 分类逻辑见设计文档
+```
+
+#### 7.6.5 Agent查询接口
+
+```python
+class KnowledgeQueryService:
+    """知识查询服务"""
+
+    async def query_for_development(
+        self,
+        operator_name: str,
+        query_type: str = "all"  # "bug" | "optimization" | "all"
+    ) -> DevelopmentQueryResult:
+        """主动开发查询"""
+
+    async def query_for_troubleshooting(
+        self,
+        symptom: str,
+        operator_name: Optional[str] = None,
+        error_message: Optional[str] = None,
+        used_apis: Optional[List[str]] = None
+    ) -> TroubleshootingResult:
+        """被动问题排查查询"""
+```
+
+#### 7.6.6 ChromaDB Collections
+
+```
+Collection: npu_bug_knowledge
+├─ bug_id (primary)
+├─ operator_id (indexed)
+├─ embedding (vector)
+├─ symptom_text
+├─ root_cause_text
+└─ metadata: severity, confidence, source_repo
+
+Collection: npu_optimization_knowledge
+├─ opt_id (primary)
+├─ operator_id (indexed)
+├─ embedding (vector)
+├─ opt_title_text
+└─ metadata: improvement_ratio, optimization_type
+```
+
+#### 7.6.7 Redis Key Patterns
+
+```
+# Bug知识索引
+bug:operator:{operator_id} → SET of bug_id
+bug:api:{api_id} → SET of bug_id
+bug:detail:{bug_id} → HASH of BugFixKnowledge
+
+# 优化知识索引
+opt:operator:{operator_id} → SET of opt_id
+opt:detail:{opt_id} → HASH of OptimizationKnowledge
+
+# 待审核队列
+bug:pending_review → LIST of bug_id
+opt:pending_review → LIST of opt_id
+```
+
 ---
 
 ## 8. 附录
@@ -916,6 +1133,10 @@ class FeedbackAPI:
 | 置信度 | 知识被信任程度的量化指标 |
 | 差量同步 | 只同步变更部分，而非全量 |
 | 冷启动 | 系统初期缺乏数据的启动阶段 |
+| Bug修复知识 | 从BugFix PR中抽取的结构化知识 |
+| 优化知识 | 从Optimization PR中抽取的结构化知识 |
+| 主动查询 | Agent开发前的参考性查询 |
+| 被动查询 | Agent遇问题时的排查性查询 |
 
 ### 8.2 参考资料
 
