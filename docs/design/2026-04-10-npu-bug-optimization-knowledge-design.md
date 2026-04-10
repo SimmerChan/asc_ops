@@ -393,6 +393,89 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+### 4.5 采样分析结果（2026-04-10实测）
+
+#### 4.5.1 仓库概览
+
+| 仓库 | 总Commits | Bugfix | Optimization | Feature |
+|------|-----------|--------|--------------|---------|
+| HierarchicalKV-ascend | 16 | 6 (37.5%) | 2 (12.5%) | 6 (37.5%) |
+| fbgemm-ascend | 13 | 3 (23.1%) | 0 (0%) | 6 (46.2%) |
+| ops-nn | 100 | 27 (27.0%) | 5 (5.0%) | 68 (68.0%) |
+| ops-math | 100 | 26 (26.0%) | 5 (5.0%) | 69 (69.0%) |
+| ops-transformer | 100 | 40 (40.0%) | 2 (2.0%) | 58 (58.0%) |
+| ops-cv | 100 | 33 (33.0%) | 12 (12.0%) | 54 (54.0%) |
+| **汇总** | **429** | **135 (31.5%)** | **26 (6.1%)** | **261 (60.9%)** |
+
+#### 4.5.2 Bugfix Commit质量分析
+
+| 指标 | 值 |
+|------|-----|
+| 总Bugfix Commits | 126 |
+| 平均质量分 | 0.62/1.0 |
+
+**信息完整度**：
+
+| 信息类型 | 覆盖率 | 说明 |
+|----------|--------|------|
+| 有修复描述 | 100% | 所有bugfix都有fix信息 |
+| 有根因描述 | 70.6% | 大部分包含根因 |
+| 提及算子名 | 44.4% | 不到一半会提及 |
+| 提及API | 32.5% | 约三分之一提及 |
+| 有触发条件 | 20.6% | 触发条件很少明确写出 |
+
+**质量分布**：
+
+| 质量等级 | 占比 | 说明 |
+|----------|------|------|
+| 高质量(≥0.6) | 52.4% | 超过一半是高价值bugfix |
+| 中等(0.3-0.6) | 47.6% | 可用但需补充信息 |
+| 低质量(<0.3) | 0% | 无完全无价值的bugfix |
+
+#### 4.5.3 高质量Bugfix示例
+
+```
+[ops-nn] 评分:1.00
+  修复index_fill算子需要处理的数据量大于int32最大值时，
+  触发地址越界，可能导致ai core问题
+  [有根因] [有触发条件]
+
+[ops-nn] 评分:0.90
+  AdaptiveAvgPool3dGrad 修复infershape动态shape下冗余校验
+  [有根因] [有触发条件]
+
+[ops-nn] 评分:0.85
+  fix conv2dv2 dma scene error when cin is always tail
+  [有根因]
+```
+
+#### 4.5.4 采样结论
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    采样分析结论                                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ✅ 好消息：                                                     │
+│  1. Bugfix占31.5%，比例适中                                      │
+│  2. 70%的bugfix包含根因描述                                      │
+│  3. 所有bugfix都有修复方案描述                                   │
+│  4. 52%是高质量bugfix（可直接使用）                              │
+│  5. 没有完全无价值的bugfix                                       │
+│                                                                  │
+│  ⚠️ 需要补充：                                                   │
+│  1. 触发条件只有20%明确写出 → 需要从代码分析推断                  │
+│  2. 算子名只有44%提及 → 需要代码分析关联                          │
+│  3. API只有32%提及 → 需要代码分析识别API调用                       │
+│                                                                  │
+│  📋 抽取策略建议：                                                │
+│  1. commit消息 → 提取根因、修复方案（直接用）                      │
+│  2. 代码diff → 识别涉及的算子、API（代码分析补充）                 │
+│  3. 触发条件 → 主要依赖代码分析推断（消息中很少）                   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ### 4.4 PR分类器
 
 ```python
@@ -438,7 +521,25 @@ class PRClassifier:
 
 ## 5. 知识抽取流程
 
-### 5.1 整体Pipeline
+### 5.1 基于采样结论的抽取策略
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              采样结论驱动的抽取策略                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  采样发现                                    抽取策略              │
+│  ─────────────────────────────────────────────────────────────  │
+│  ✅ 100%有修复描述     → 直接从commit消息提取                  │
+│  ✅ 70.6%有根因       → 从commit消息 + diff补充                │
+│  ⚠️ 32.5%提及API     → 从代码diff分析识别AscendC API调用       │
+│  ⚠️ 44.4%提及算子名  → 从代码diff分析识别算子名                │
+│  ⚠️ 20.6%有触发条件  → 启发式规则 + 代码分析推断              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 5.2 整体Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -446,84 +547,215 @@ class PRClassifier:
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │                   PR事件触发                               │  │
-│  │                   (Webhook)                               │  │
+│  │                   Commit事件触发                            │  │
+│  │                   (Webhook / 定时扫描)                     │  │
 │  └────────────────────────┬─────────────────────────────────┘  │
 │                           │                                      │
 │                           ▼                                      │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │              PR分类 (PRClassifier)                        │  │
-│  │  bugfix ──► Bug知识抽取                                  │  │
-│  │  optimization ──► 优化知识抽取                           │  │
-│  │  feature ──► 跳过（除非包含相关知识）                     │  │
+│  │              Commit分类 (PRClassifier)                     │  │
+│  │  bugfix ──► Bug知识抽取                                   │  │
+│  │  optimization ──► 优化知识抽取                            │  │
+│  │  feature/merge ──► 跳过                                   │  │
 │  └────────────────────────┬─────────────────────────────────┘  │
 │                           │                                      │
 │          ┌────────────────┴────────────────┐                     │
 │          ▼                                 ▼                     │
 │  ┌──────────────────┐          ┌──────────────────┐            │
 │  │  Bug知识抽取      │          │  优化知识抽取     │            │
-│  │                  │          │                  │            │
-│  │  1. LLM语义抽取  │          │  1. LLM语义抽取  │            │
-│  │  2. 信息补全     │          │  2. 指标提取     │            │
-│  │  3. 置信度评估   │          │  3. 置信度评估  │            │
-│  │  4. 去重检查     │          │  4. 去重检查     │            │
-│  │  5. 存储         │          │  5. 存储         │            │
+│  │  (见5.3)         │          │  (见5.4)        │            │
 │  └──────────────────┘          └──────────────────┘            │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 Bug知识抽取详细流程
+### 5.3 Bug知识抽取详细流程
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              Bug知识抽取流程（基于采样优化）                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Step 1: Commit消息解析                                           │
+│  ────────────────────────────────────                           │
+│  输入: commit.title + commit.body                                │
+│  输出: bug_title, symptom, root_cause, fix_pattern             │
+│  策略: LLM提取，70%能直接获取根因                                │
+│                                                                  │
+│  Step 2: 代码Diff分析（补充API和算子）                           │
+│  ─────────────────────────────────────────────                   │
+│  输入: commit.diff                                               │
+│  输出: related_apis, operator_id                                  │
+│  策略: AST解析 / 正则匹配 AscendC API调用模式                   │
+│                                                                  │
+│  Step 3: 触发条件推断                                             │
+│  ────────────────────────                                        │
+│  输入: bug_title, symptom, code_diff                             │
+│  输出: trigger_conditions                                        │
+│  策略: 启发式规则（当xxx时/输入大于某值/特定数据形状）          │
+│                                                                  │
+│  Step 4: 置信度评估                                               │
+│  ────────────────────                                           │
+│  评估因素: 根因完整度 + API识别 + 触发条件推断                    │
+│  → 高置信度(≥0.7): 直接入库                                     │
+│  → 中置信度(0.4-0.7): 标记待审核                                │
+│  → 低置信度(<0.4): 跳过或人工处理                                │
+│                                                                  │
+│  Step 5: 去重检查                                                │
+│  ──────────────                                                  │
+│  基于: operator_id + symptom + fix_pattern 的相似度               │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 5.3.1 代码Diff分析实现
 
 ```python
-async def extract_bug_knowledge(pr: PullRequest) -> Optional[BugFixKnowledge]:
-    """从BugFix PR中抽取Bug知识"""
+import re
+from typing import List, Set
 
-    # 1. PR信息准备
-    pr_content = {
-        "title": pr.title,
-        "description": pr.description or "",
-        "diff": pr.get_diff(),
-        "comments": pr.get_comments(),
-        "files_changed": pr.get_changed_files()
-    }
+# AscendC API调用模式
+ASCENDC_API_PATTERNS = [
+    r'\b(Mmad|Gmma|TensorDesc|LocalTensor|GlobalTensor)\b',
+    r'\b(DataCopy|Copy)\b',
+    r'\b(Vec.*|Matmul|Reduce.*)\b',  # Vec系列, Matmul等
+    r'\baclnn\w+',  # ACLNN API
+    r'\bAscendC\b',
+]
 
-    # 2. LLM语义抽取
+# 算子名识别模式
+OPERATOR_PATTERNS = [
+    r'(?<![\w])([A-Z][a-z]+(?:[A-Z][a-z]+)+)(?!\w)',  # 驼峰: MatMulV3
+    r'(?<![\w])(\w+[_-]\w+[_-]\w+)(?!\w)',  # 下划线: block_bucketize_sparse
+]
+
+
+def extract_apis_from_diff(diff: str) -> List[str]:
+    """从代码diff中提取AscendC API调用"""
+    apis = set()
+    for pattern in ASCENDC_API_PATTERNS:
+        matches = re.findall(pattern, diff, re.IGNORECASE)
+        apis.update(matches)
+    return list(apis)
+
+
+def extract_operators_from_diff(diff: str) -> List[str]:
+    """从代码diff中提取算子名"""
+    operators = set()
+    for pattern in OPERATOR_PATTERNS:
+        matches = re.findall(pattern, diff)
+        operators.update(matches)
+    return list(operators)
+
+
+def infer_trigger_conditions(
+    title: str,
+    symptom: str,
+    diff: str
+) -> List[str]:
+    """推断触发条件（基于启发式规则）"""
+
+    triggers = []
+
+    # 规则1: 从标题/描述中提取"当xxx时"
+    when_patterns = [
+        r'当([^，,。]+)时',
+        r'when\s+([^,\n]+)',
+        r'在([^，,。]+)下',
+        r'如果([^，,。]+)',
+    ]
+    for pattern in when_patterns:
+        matches = re.findall(pattern, title + symptom)
+        triggers.extend(matches)
+
+    # 规则2: 数值条件
+    number_conditions = re.findall(
+        r'(大于|小于|超过|小于等于|大于等于|>=|<=|>|<)\s*(\d+)',
+        title + symptom
+    )
+    for op, value in number_conditions:
+        triggers.append(f"输入{op}{value}")
+
+    # 规则3: 数据形状条件
+    shape_conditions = re.findall(
+        r'(batch|size|shape|维度|形状)[^\d]*(\d+)',
+        title + symptom, re.IGNORECASE
+    )
+    for name, value in shape_conditions:
+        triggers.append(f"{name}={value}")
+
+    return list(set(triggers))[:5]  # 最多5个
+```
+
+### 5.3.2 Bug知识抽取实现
+
+```python
+async def extract_bug_knowledge(commit: Commit) -> Optional[BugFixKnowledge]:
+    """从BugFix Commit中抽取Bug知识（优化版）"""
+
+    # ====== Step 1: Commit消息解析 ======
+    # 策略: LLM直接提取，70%能获取根因
     extraction = await llm.extract_bug_knowledge(
         prompt=f"""
-从以下BugFix PR中抽取结构化知识：
+从以下BugFix Commit中抽取结构化知识：
 
-标题: {pr_content['title']}
-描述: {pr_content['description']}
-代码变更: {pr_content['diff']}
+标题: {commit.title}
+描述: {commit.body or ""}
 
-请提取以下信息（无法提取的字段填空字符串）：
-- bug_title: Bug简短描述
+请提取以下信息：
+- bug_title: Bug简短描述（从标题提取）
 - symptom: Bug表现（什么现象）
-- root_cause: 根因（如果能从描述/diff中推断）
-- trigger_conditions: 触发条件列表
+- root_cause: 根因（如果消息中有）
 - fix_pattern: 修复方案描述
-- related_apis: 涉及的API（从代码中识别AscendC API调用）
-- severity: 严重程度 (critical/major/minor)
-- category: Bug类别 (correctness/performance/numerical/memory/sync)
 
+只输出你确定的信息，不确定则留空。
 输出格式: JSON
 """
     )
 
-    # 3. 信息补全（如果根因为空，尝试从diff分析）
-    if not extraction.root_cause:
-        extraction.root_cause = await analyze_code_change_for_root_cause(
-            pr_content['diff']
+    # ====== Step 2: 代码Diff分析（补充API和算子）======
+    diff = await get_commit_diff(commit)
+    related_apis = extract_apis_from_diff(diff)
+    operator_names = extract_operators_from_diff(diff)
+
+    # 尝试从diff中的文件名推断算子
+    file_operators = extract_operators_from_filenames(diff)
+    all_operators = list(set(operator_names + file_operators))
+
+    # ====== Step 3: 触发条件推断 ======
+    trigger_conditions = []
+    if not extraction.trigger_conditions:
+        trigger_conditions = infer_trigger_conditions(
+            commit.title,
+            extraction.symptom or "",
+            diff
         )
 
-    # 4. 关联算子识别
-    operator_id = extract_operator_id_from_pr(pr_content)
+    # ====== Step 4: 置信度评估 ======
+    confidence = 0.5  # 基础分
 
-    # 5. 置信度评估
-    confidence = evaluate_confidence(extraction, pr_content)
+    if extraction.root_cause:
+        confidence += 0.25  # 有根因 +0.25
 
-    # 6. 去重检查
+    if extraction.symptom:
+        confidence += 0.15  # 有症状 +0.15
+
+    if related_apis:
+        confidence += 0.15  # 有API识别 +0.15
+
+    if all_operators:
+        confidence += 0.10  # 有算子识别 +0.10
+
+    if trigger_conditions:
+        confidence += 0.10  # 有触发条件 +0.10
+
+    if len(commit.body or "") > 50:
+        confidence += 0.05  # 有详细描述 +0.05
+
+    confidence = min(confidence, 1.0)
+
+    # ====== Step 5: 去重检查 ======
+    operator_id = all_operators[0] if all_operators else "unknown"
     is_duplicate = await check_duplicate_bug(
         operator_id,
         extraction.symptom,
@@ -531,134 +763,271 @@ async def extract_bug_knowledge(pr: PullRequest) -> Optional[BugFixKnowledge]:
     )
 
     if is_duplicate:
-        return None  # 跳过重复
+        return None
 
-    # 7. 构建知识
-    bug_knowledge = BugFixKnowledge(
-        bug_id=f"bug_{pr.repo}_{pr.pr_number}",
+    # ====== Step 6: 构建知识 ======
+    return BugFixKnowledge(
+        bug_id=f"bug_{commit.repo}_{commit.hash[:8]}",
         operator_id=operator_id,
-        source_repo=pr.repo,
-        source_pr=f"PR #{pr.pr_number}",
-        bug_title=extraction.bug_title or pr.title,
+        source_repo=commit.repo,
+        source_pr=f"commit:{commit.hash[:8]}",
+        bug_title=extraction.bug_title or commit.title,
         symptom=extraction.symptom,
         severity=extraction.severity or BugSeverity.MAJOR,
-        category=extraction.category or BugCategory.CORRECTNESS,
+        category=classify_bug_category(commit.title, extraction.symptom),
         root_cause=extraction.root_cause,
-        trigger_conditions=extraction.trigger_conditions or [],
+        trigger_conditions=trigger_conditions,
         fix_pattern=extraction.fix_pattern,
-        fix_code_hints=extraction.fix_code_hints or [],
-        related_apis=extraction.related_apis or [],
+        fix_code_hints=extract_fix_hints(diff),
+        related_apis=related_apis,
         confidence=confidence,
-        extraction_method="llm",
+        extraction_method="llm+code",
         review_status="pending" if confidence < 0.7 else "approved",
         embedding=await generate_embedding(extraction),
         created_at=datetime.now(),
         updated_at=datetime.now()
     )
 
-    return bug_knowledge
 
+def classify_bug_category(title: str, symptom: str) -> BugCategory:
+    """分类Bug类别"""
+    text = (title + " " + (symptom or "")).lower()
 
-def evaluate_confidence(extraction, pr_content) -> float:
-    """评估抽取置信度"""
-
-    score = 0.5  # 基础分
-
-    # 根因信息
-    if extraction.root_cause:
-        score += 0.2
+    if any(kw in text for kw in ["精度", "accuracy", "precision", "数值"]):
+        return BugCategory.NUMERICAL
+    elif any(kw in text for kw in ["性能", "perf", "慢", "延迟"]):
+        return BugCategory.PERFORMANCE
+    elif any(kw in text for kw in ["内存", "memory", "泄漏", "leak"]):
+        return BugCategory.MEMORY
+    elif any(kw in text for kw in ["同步", "sync", "死锁", "race"]):
+        return BugCategory.SYNC
     else:
-        # 尝试从diff分析
-        score += 0.05
+        return BugCategory.CORRECTNESS
 
-    # 触发条件
-    if extraction.trigger_conditions:
-        score += 0.1
 
-    # 修复方案
-    if extraction.fix_pattern:
-        score += 0.15
+def extract_fix_hints(diff: str) -> List[str]:
+    """从diff中提取修复代码提示"""
+    hints = []
 
-    # API关联
-    if extraction.related_apis:
-        score += 0.05
+    # 提取修改的行
+    added_lines = [line for line in diff.split('\n') if line.startswith('+')]
 
-    # 描述完整度加成
-    desc_len = len(pr_content.get('description', '') or '')
-    if desc_len > 200:
-        score += 0.05
+    # 提取关键的API调用修改
+    for line in added_lines:
+        if any(pattern in line for pattern in ASCENDC_API_PATTERNS):
+            hints.append(line.strip()[:100])  # 截断
 
-    return min(score, 1.0)  # 最高1.0
+    return hints[:3]  # 最多3个
+```
 ```
 
-### 5.3 优化知识抽取
+### 5.4 优化知识抽取详细流程
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│           优化知识抽取流程（基于采样分析优化）                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  采样发现：                                                       │
+│  - 优化类commits仅占6.1%（26/429），比例很低                       │
+│  - 很多"优化"实际是文档改进或格式调整                              │
+│  - 有明确性能描述的优化commits更少                                 │
+│  → 策略：精确分类 + LLM语义提取 + 可选量化                          │
+│                                                                  │
+│  Step 1: 优化Commit精确分类                                       │
+│  ────────────────────────────────────                           │
+│  排除项：                                                         │
+│  - README/文档修改（readme, md, doc）                             │
+│  - 代码格式调整（format, style, indent）                          │
+│  - 注释更新（comment, log）                                      │
+│  → 只有明确性能相关才进入优化知识抽取                               │
+│                                                                  │
+│  Step 2: Commit消息解析                                           │
+│  ────────────────────────────────────                           │
+│  输入: commit.title + commit.body                                │
+│  输出: opt_title, optimization_type, optimization_description   │
+│  策略: LLM提取，识别优化类型（分块/流水/向量化/内存）             │
+│                                                                  │
+│  Step 3: 代码Diff分析                                            │
+│  ────────────────────────────────────                           │
+│  输入: commit.diff                                               │
+│  输出: related_apis, optimization_pattern                       │
+│  策略: 识别性能相关API调用和优化模式                               │
+│                                                                  │
+│  Step 4: 量化指标解析（可选）                                     │
+│  ────────────────────────────────                               │
+│  improvement_ratio:                                             │
+│  - 如commit消息中有明确性能数据 → 提取                            │
+│  - 如无 → 标记为null，不影响入库                                  │
+│  - 采样中只有极少数优化有量化指标                                  │
+│                                                                  │
+│  Step 5: 置信度评估                                               │
+│  ────────────────────                                           │
+│  评估因素: 优化类型明确度 + API识别 + 量化指标                      │
+│  → 有量化指标: 置信度0.8+                                        │
+│  → 无量化指标但有明确优化描述: 置信度0.6                           │
+│  → 只有标题无详细描述: 置信度0.4                                   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 5.4.1 优化Commit精确分类器
+
+```python
+# 优化Commit精确分类（排除非性能优化）
+
+EXCLUDE_PATTERNS = [
+    r'readme', r'doc', r'md$', r'docs?/',
+    r'format', r'style', r'indent', r'lint',
+    r'comment', r'log$', r'changelog',
+    r'copyright', r'license', r' CI ', r'workflow',
+]
+
+PERF_KEYWORDS = [
+    r'性能', r'优化', r'加速', r'speedup', r'性能提升',
+    r'throughput', r'latency', r'performance',
+    r'流水', r'分块', r'向量化', r'并行',
+    r'memory|TLB|cache|带宽',
+]
+
+
+def is_genuine_optimization(title: str, diff: str = "") -> bool:
+    """
+    判断是否为真正的性能优化Commit
+    排除文档修改、格式调整等
+    """
+    title_lower = title.lower()
+
+    # 排除项检查
+    for pattern in EXCLUDE_PATTERNS:
+        if re.search(pattern, title_lower):
+            return False
+
+    # 必须包含性能关键词
+    has_perf_keyword = any(
+        re.search(p, title_lower) for p in PERF_KEYWORDS
+    )
+
+    # 或者diff中有明确性能相关代码
+    if diff:
+        perf_api_indicators = [
+            r'Tile|TilingConfig', r'StreamK',
+            r'pipeline|parallel',
+            r'memory.*alloc|cache.*optim',
+        ]
+        has_perf_api = any(
+            re.search(p, diff, re.IGNORECASE) for p in perf_api_indicators
+        )
+        return has_perf_keyword or has_perf_api
+
+    return has_perf_keyword
+```
+
+### 5.4.2 优化知识抽取实现
 
 ```python
 async def extract_optimization_knowledge(
-    pr: PullRequest
+    commit: Commit
 ) -> Optional[OptimizationKnowledge]:
-    """从优化PR中抽取优化知识"""
+    """从优化Commit中抽取优化知识（优化版）"""
 
-    # 1. PR信息准备
-    pr_content = {
-        "title": pr.title,
-        "description": pr.description or "",
-        "diff": pr.get_diff()
-    }
+    # ====== Step 1: 精确分类 ======
+    diff = await get_commit_diff(commit)
+    if not is_genuine_optimization(commit.title, diff):
+        # 文档/格式调整 → 跳过
+        return None
 
-    # 2. LLM语义抽取
+    # ====== Step 2: Commit消息解析 ======
     extraction = await llm.extract_optimization_knowledge(
         prompt=f"""
-从以下优化PR中抽取结构化知识：
+从以下优化Commit中抽取结构化知识：
 
-标题: {pr_content['title']}
-描述: {pr_content['description']}
-代码变更: {pr_content['diff']}
+标题: {commit.title}
+描述: {commit.body or ""}
 
 请提取以下信息：
 - opt_title: 优化简短描述
-- optimization_type: 优化类型列表（分块/流水/向量化/内存优化/精度优化等）
-- optimization_description: 详细优化方案
+- optimization_type: 优化类型（分块/流水/向量化/内存优化/算法优化等）
+- optimization_description: 详细优化方案描述
 - optimization_context: 优化适用场景/上下文
 - improvement_ratio: 性能提升比例（如0.15表示15%，如无则填null）
-- before_metrics: 优化前指标（如无则填null）
-- after_metrics: 优化后指标（如无则填null）
-- related_apis: 涉及的API
+- related_apis: 涉及的AscendC API（如无则填[]）
 
+只输出你确定的信息，不确定则留空。
 输出格式: JSON
 """
     )
 
-    # 3. 关联算子识别
-    operator_id = extract_operator_id_from_pr(pr_content)
+    # ====== Step 3: 代码Diff分析（补充API和优化模式）======
+    related_apis = extract_apis_from_diff(diff)
+    optimization_pattern = detect_optimization_pattern(diff)
 
-    # 4. 量化指标解析
-    improvement_ratio = parse_improvement_ratio(extraction.improvement_ratio)
+    # ====== Step 4: 量化指标解析（可选）======
+    improvement_ratio = parse_improvement_ratio(
+        extraction.improvement_ratio
+    )
 
-    # 5. 构建知识
-    opt_knowledge = OptimizationKnowledge(
-        opt_id=f"opt_{pr.repo}_{pr.pr_number}",
-        operator_id=operator_id,
-        source_repo=pr.repo,
-        source_pr=f"PR #{pr.pr_number}",
-        opt_title=extraction.opt_title or pr.title,
+    # ====== Step 5: 置信度评估 ======
+    confidence = 0.4  # 基础分
+
+    if extraction.optimization_type:
+        confidence += 0.2  # 有优化类型 +0.2
+
+    if extraction.optimization_description:
+        confidence += 0.2  # 有详细描述 +0.2
+
+    if related_apis:
+        confidence += 0.1  # 有API识别 +0.1
+
+    if improvement_ratio:
+        confidence += 0.2  # 有量化指标 +0.2
+
+    confidence = min(confidence, 1.0)
+
+    # ====== Step 6: 构建知识 ======
+    return OptimizationKnowledge(
+        opt_id=f"opt_{commit.repo}_{commit.hash[:8]}",
+        operator_id=extract_operator_from_path(diff) or "unknown",
+        source_repo=commit.repo,
+        source_pr=f"commit:{commit.hash[:8]}",
+        opt_title=extraction.opt_title or commit.title,
         optimization_type=extraction.optimization_type or [],
-        target="性能",  # 默认性能优化
+        target="性能",
         optimization_description=extraction.optimization_description,
-        optimization_context=extraction.optimization_context,
+        optimization_context=extraction.optimization_context or "",
         improvement_ratio=improvement_ratio,
-        before_metrics=extraction.before_metrics,
-        after_metrics=extraction.after_metrics,
-        related_apis=extraction.related_apis or [],
-        confidence=0.8 if improvement_ratio else 0.6,
-        extraction_method="llm",
+        before_metrics=None,
+        after_metrics=None,
+        related_apis=related_apis + (extraction.related_apis or []),
+        confidence=confidence,
+        extraction_method="llm+code",
         review_status="pending",
         embedding=await generate_embedding(extraction),
         created_at=datetime.now(),
         updated_at=datetime.now()
     )
 
-    return opt_knowledge
+
+def detect_optimization_pattern(diff: str) -> List[str]:
+    """从代码diff中识别优化模式"""
+    patterns = []
+
+    pattern_map = {
+        r'Tile|TilingConfig': '分块tiling',
+        r'StreamK': 'StreamK并行',
+        r'pipeline|流水': '指令流水',
+        r'v sigmoid|vectorize': '向量化',
+        r'DMA|copy': '内存访问优化',
+        r'cache|CACHE': 'Cache优化',
+        r'unroll|UUNROLL': '循环展开',
+        r'warp|WARP': 'Warp级并行',
+    }
+
+    for pattern, name in pattern_map.items():
+        if re.search(pattern, diff, re.IGNORECASE):
+            patterns.append(name)
+
+    return patterns
 ```
 
 ---
