@@ -17,7 +17,7 @@ from .models import (
 )
 from .storage import ChromaDBClient, RedisClient
 from .storage.collections import CollectionType
-from .ranker import Ranker, FusionConfig, ScoredResult, QueryType
+from .ranker import Ranker, FusionConfig, ScoredResult, QueryType, ConfidenceRanker, RankingConfig
 from .extractor.knowledge_storage import KnowledgeStorage
 
 logger = logging.getLogger(__name__)
@@ -47,6 +47,10 @@ class KnowledgeQueryService:
             redis_client=self._redis,
         )
         self._ranker = Ranker(FusionConfig())
+        self._confidence_ranker = ConfidenceRanker(
+            config=RankingConfig(),
+            redis_client=self._redis
+        )
         self.base_url = base_url
 
         logger.info("KnowledgeQueryService initialized")
@@ -58,6 +62,7 @@ class KnowledgeQueryService:
         api_filter: Optional[List[str]] = None,
         min_confidence: float = 0.5,
         limit: int = 10,
+        use_confidence_ranking: bool = True,
     ) -> "DevelopmentQueryResult":
         """
         主动开发查询
@@ -68,6 +73,7 @@ class KnowledgeQueryService:
             api_filter: API过滤列表
             min_confidence: 最低置信度
             limit: 返回数量
+            use_confidence_ranking: 是否使用置信度感知排序
 
         Returns:
             DevelopmentQueryResult
@@ -90,6 +96,11 @@ class KnowledgeQueryService:
                 min_confidence=min_confidence,
                 limit=limit if query_type == "optimization" else limit // 2,
             )
+
+        # 应用置信度排序
+        if use_confidence_ranking:
+            bug_fixes = await self._apply_confidence_ranking(bug_fixes, "bug")
+            optimizations = await self._apply_confidence_ranking(optimizations, "optimization")
 
         return DevelopmentQueryResult(
             operator_name=operator_name,
@@ -537,6 +548,66 @@ class KnowledgeQueryService:
             source=source,
             confidence=float(metadata.get("confidence", 1.0)),
         )
+
+    async def _apply_confidence_ranking(
+        self,
+        items: list,
+        item_type: str = "bug"
+    ) -> list:
+        """
+        应用置信度感知排序
+
+        Args:
+            items: 知识条目列表 (BugFixKnowledge or OptimizationKnowledge)
+            item_type: 条目类型 (bug | optimization)
+
+        Returns:
+            排序后的列表
+        """
+        if not items:
+            return items
+
+        # 转换为 dict 格式供 ranker 使用
+        item_dicts = []
+        for item in items:
+            # 推导 source_type (official: ascend 官方仓, community: 其他)
+            source_repo = getattr(item, "source_repo", "")
+            if "ascend" in source_repo.lower() or "huawei" in source_repo.lower():
+                source_type = "official"
+            elif source_repo:
+                source_type = "community"
+            else:
+                source_type = "other"
+
+            # 构建元数据
+            metadata = {
+                "source_type": source_type,
+                "contributor_level": "active",  # 默认值
+                "updated_at": getattr(item, "updated_at", None),
+                "confidence": getattr(item, "confidence", 0.5),
+                "source_repo": source_repo,
+                "source_pr": getattr(item, "source_pr", ""),
+            }
+
+            item_id = getattr(item, "bug_id", None) or getattr(item, "opt_id", None) or str(item)
+            item_dict = {
+                "id": item_id,
+                "score": getattr(item, "confidence", 0.5),
+                "metadata": metadata,
+            }
+            item_dicts.append(item_dict)
+
+        # 使用置信度排序器排序
+        ranked_items = await self._confidence_ranker.rank_results(item_dicts, top_k=len(item_dicts))
+
+        # 按排序顺序重新组织原始对象
+        id_to_item = {
+            getattr(item, "bug_id", None) or getattr(item, "opt_id", None): item
+            for item in items
+        }
+        sorted_items = [id_to_item[item.id] for item in ranked_items if item.id in id_to_item]
+
+        return sorted_items
 
     def _generate_checks(self, bug: BugFixKnowledge) -> List[str]:
         """生成建议检查项"""
