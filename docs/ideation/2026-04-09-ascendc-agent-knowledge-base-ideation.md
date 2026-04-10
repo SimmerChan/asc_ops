@@ -561,6 +561,203 @@ client.submit_feedback(
 - 2026-04-09: 修正算子仓列表 — 更新为实际仓库：HierarchicalKV-ascend, fbgemm-ascend, ops-math, ops-nn, ops-transformer, ops-cv
 - 2026-04-09: GPU→NPU跨平台适配 — GPU算子知识采集、跨平台知识表示、适配辅助功能
 - 2026-04-10: 补充FBGEMM→AscendC详细工作流 — 完整API调用、适配检查清单、代码框架示例
+- 2026-04-10: AscendC API知识库 — API参考文档采集、算子使用案例关联、三角知识体系
+
+---
+
+## AscendC API参考知识库设计
+
+### 1. 核心需求
+
+**需求一：AscendC API参考知识库**
+- 存储和持续更新昇腾AscendC算子API
+- 供Agent开发AscendC算子时查询参考
+- 数据源：昇腾官方API文档
+
+**需求二：NPU算子API使用案例**
+- 保存昇腾NPU算子涉及的AscendC API接口
+- 记录多种实现案例
+- 供Agent开发时参考具体用法
+
+### 2. API数据模型
+
+```python
+@dataclass
+class AscendCAPIDefinition:
+    api_id: str                      # 唯一标识，如 "ascendc_vec_reduce_max_v2"
+    canonical_name: str               # 标准名称，如 "VecReduce"
+    full_signature: str               # 完整签名
+
+    # 分类体系
+    category: APICategory             # memory/compute/sync/tensor
+    hardware_domain: str             # ub/cube/l1/gm
+
+    # 核心信息
+    description: str                 # 功能描述
+    parameters: List[APIParameter]    # 参数列表
+    return_value: APIReturnValue     # 返回值
+
+    # 版本信息
+    version_info: APIVersionInfo     # introduced/deprecated/removed
+
+    # 使用信息
+    usage_examples: List[UsageExample]  # 使用案例
+    注意事项: List[str]                # 使用注意事项
+```
+
+### 3. API分类体系
+
+```
+AscendC API 分类
+════════════════════════════════════════════════════════════════
+
+按硬件域分类：
+┌──────────────────┬──────────────────┬──────────────────┐
+│  UB (Unified Buffer) │ Cube (矩阵计算) │ L1 (Local Memory) │
+├──────────────────┼──────────────────┼──────────────────┤
+│ Vec_* (向量操作)  │ Cube_* (矩阵运算) │ LocalTensor      │
+│ Matmul           │ MMA               │ LocalAlloc       │
+│ VecReduce        │ Load2D/Store2D  │ LocalSync        │
+└──────────────────┴──────────────────┴──────────────────┘
+
+按功能分类：
+┌────────────┬────────────┬────────────┬────────────┐
+│ memory    │ compute    │ sync      │ tensor     │
+├────────────┼────────────┼────────────┼────────────┤
+│ GmAlloc   │ VecAbs     │ SyncAll   │ Tensor     │
+│ GmFree    │ VecAdd     │ PipeSync  │ TensorDesc │
+│ LocalAlloc│ VecMul     │ Wait      │ LocalTensor│
+│ Copy      │ Matmul     │           │ GlobalTensor│
+└────────────┴────────────┴────────────┴────────────┘
+
+P0常用API: VecAdd, VecMul, Matmul, Tensor, GmAlloc, SyncAll, Copy
+```
+
+### 4. 算子-API多对多关系
+
+```
+┌─────────────┐         uses         ┌─────────────┐
+│   算子      │ ◄──────────────────► │    API      │
+│  Matmul     │                       │   VecMul    │
+└──────┬──────┘                       └──────┬──────┘
+       │                                     │
+       ▼       ┌─────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│      OperatorAPIUsage (使用记录/案例)        │
+│  operator + api + context + snippet         │
+└─────────────────────────────────────────────┘
+```
+
+### 5. API采集方案
+
+| 数据源 | 采集方式 | 频率 |
+|--------|----------|------|
+| 昇腾官方API文档 | Web爬虫+增量ETag | 每日 |
+| CANN Developer Guide | Web爬虫 | 每日 |
+| 6个NPU算子仓 | Git解析提取API调用 | 实时 |
+| AscendC Samples | Git解析 | 每周 |
+
+### 6. 查询模式
+
+**模式一：语义搜索API**
+```
+Agent: "查找向量规约API"
+知识库 → VecReduce, VecMax, VecMin
+```
+
+**模式二：算子API查询**
+```
+Agent: "Matmul用了哪些API"
+知识库 → VecMul, Cube, Load2D, Store2D, SyncAll, GmAlloc
+```
+
+**模式三：API使用案例**
+```
+Agent: "VecMul在真实算子中怎么用"
+知识库 → LayerNorm中使用案例、Attention中使用案例
+```
+
+**模式四：GPU→NPU API映射**
+```
+Agent: "wmma::mma_sync对应NPU什么API"
+知识库 → Cube (CubeMatMul)
+```
+
+### 7. MCP接口定义
+
+```typescript
+// AscendC API查询工具
+const API_TOOLS = {
+  query_api: {
+    name: "query_ascendc_api",
+    description: "查询AscendC API定义",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "API名称或功能描述" },
+        category: { type: "string", enum: ["memory", "compute", "sync", "tensor"] },
+        hardware_domain: { type: "string", enum: ["ub", "cube", "l1", "gm"] }
+      }
+    }
+  },
+
+  query_operator_apis: {
+    name: "query_operator_apis",
+    description: "查询算子使用的API列表",
+    inputSchema: {
+      type: "object",
+      properties: {
+        operator_name: { type: "string" }
+      }
+    }
+  },
+
+  query_api_usage_examples: {
+    name: "query_api_usage_examples",
+    description: "查询API在真实算子中的使用案例",
+    inputSchema: {
+      type: "object",
+      properties: {
+        api_name: { type: "string" },
+        max_examples: { type: "number", default: 5 }
+      }
+    }
+  }
+}
+```
+
+### 8. 与现有知识库的关系
+
+```
+┌─────────────────────────────────────┐
+│            三角知识关联               │
+│                                      │
+│    ┌─────────┐                      │
+│    │ 算子KB  │◄── 算子→API         │
+│    └────┬────┘         │            │
+│         │              ▼            │
+│         │   ┌─────────────────┐    │
+│         └───►│ OperatorAPIUsage │    │
+│              │ (使用记录/案例)  │    │
+│              └─────────────────┘    │
+│                    ▲                 │
+│         API←───────┘                 │
+│    ┌─────────┐                      │
+│    │  GPUKB  │◄── API映射          │
+│    └─────────┘                      │
+└─────────────────────────────────────┘
+```
+
+### 9. 实施周期
+
+| 阶段 | 内容 | 人天 |
+|------|------|------|
+| A1 | API数据模型 + 存储 | 7 |
+| A2 | API文档采集 | 14 |
+| A3 | 使用案例采集 | 14 |
+| A4 | 查询接口 | 14 |
+| A5 | 跨库关联 | 7 |
+| **合计** | | **56人天** |
 
 ---
 
