@@ -195,47 +195,199 @@ class APISourceInfo:
     doc_url: str
     authority_score: float  # 0.0-1.0, 官方文档=1.0
     last_verified: datetime
+
+
+### 2.1.5 官方文档页面结构（实测）
+
+```python
+# 实际官方API文档页面结构示例：LocalTensor页面
+@dataclass
+class OfficialAPIPageStructure:
+    """官方API文档页面结构（实测）"""
+
+    # 页面固定元素
+    page_header: dict = {
+        "面包屑导航": "CANN社区版 > Ascend C算子开发接口 > SIMD API > 基础数据结构 > LocalTensor",
+        "版本标记": "9.0.0-beta.2",
+        "评分入口": "我要评分",
+        "反馈入口": "在线提单 / 论坛求助"
+    }
+
+    # 页面核心内容区
+    content_sections: dict = {
+        # API简介
+        "api_intro": {
+            "title": "LocalTensor简介",
+            "update_time": "更新时间：2026/03/31",
+            "description": "LocalTensor用于存放AI Core中Local Memory（内部存储）的数据...",
+            "supported_positions": "VECIN、VECOUT、VECCALC、A1、A2、B1、B2、CO1、CO2"
+        },
+
+        # 必要信息
+        "header_file": {
+            "title": "需要包含的头文件",
+            "content": '#include "kernel_operator.h"'
+        },
+
+        # 函数签名
+        "signature": {
+            "title": "原型定义",
+            "content": """template <typename T> class LocalTensor : public BaseLocalTensor<T> {
+public:
+    __aicore__ inline LocalTensor<T>() {};
+    __aicore__ inline uint64_t GetPhyAddr() const;
+    __aicore__ inline uint64_t GetPhyAddr(const uint32_t offset) const;
+    __aicore__ inline __inout_pipe__(S) PrimType GetValue(const uint32_t index) const;
+    // ... 更多方法
+};"""
+        },
+
+        # 模板参数说明（表格形式）
+        "template_params": {
+            "title": "模板参数",
+            "table_header": ["参数名", "描述"],
+            "table_rows": [
+                ["T", "类型T可以支持基础数据类型以及TensorTrait类型..."]
+            ]
+        },
+
+        # 约束说明
+        "constraints": {
+            "title": "使用约束",
+            "content": "具体约束条件..."
+        }
+    }
+
+    # 页面导航
+    page_navigation: dict = {
+        "prev_page": "通用说明和约束",
+        "next_page": "LocalTensor构造函数"
+    }
+
+    # 法律信息
+    legal_footer: dict = {
+        "copyright": "版权所有 © 2021-2026华为技术有限公司",
+        "record_num": "粤A2-20044005号"
+    }
 ```
 
-### 2.2 API分类体系
+**实测LocalTensor API签名：**
+```cpp
+// 实测得到的完整签名（来自官方文档）
+template <typename T> class LocalTensor : public BaseLocalTensor<T> {
+public:
+    using PrimType = PrimT<T>;
+    __aicore__ inline LocalTensor<T>() {};
+
+#if defined(ASCENDC_CPU_DEBUG) && ASCENDC_CPU_DEBUG == 1
+    ~LocalTensor();
+    explicit LocalTensor<T>(TBuffAddr& address);
+    LocalTensor<T>(const LocalTensor<T>& other);
+    LocalTensor<T> operator = (const LocalTensor<T>& other);
+    PrimType* GetPhyAddr(const uint32_t offset) const;
+    PrimType* GetPhyAddr() const;
+    __inout_pipe__(S) PrimType GetValue(const uint32_t offset) const;
+    __inout_pipe__(S) PrimType& operator()(const uint32_t offset) const;
+    template <typename CAST_T> __aicore__ inline LocalTensor<CAST_T> ReinterpretCast() const;
+    template <typename T1> __inout_pipe__(S) void SetValue(const uint32_t index, const T1 value) const;
+    // ... 更多方法
+#else
+    __aicore__ inline uint64_t GetPhyAddr() const;
+    __aicore__ inline uint64_t GetPhyAddr(const uint32_t offset) const;
+    __aicore__ inline __inout_pipe__(S) PrimType GetValue(const uint32_t index) const;
+    __aicore__ inline __inout_pipe__(S) __ubuf__ PrimType& operator()(const uint32_t offset) const;
+    template <typename CAST_T> __aicore__ inline LocalTensor<CAST_T> ReinterpretCast() const;
+    // ... 调试/非调试模式不同实现
+#endif
+    // 位置、大小、形状相关
+    __aicore__ inline LocalTensor<T>(AscendC::TPosition pos, uint32_t addr, uint32_t tieSize);
+    __aicore__ inline int32_t GetPosition() const;
+    __aicore__ inline void SetSize(const uint32_t size);
+    __aicore__ inline uint32_t GetSize() const;
+    // ...
+};
+```
+
+### 2.2 API分类体系（基于官方文档实测）
 
 ```
 AscendC API 分类体系
 ═══════════════════════════════════════════════════════════════════════
 
+【实测数据来源】
+文档版本: CANN社区版 9.0.0-beta.2
+提取URL: https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta2/API/ascendcopapi/
+
 按硬件域分类：
 ┌─────────────────────────────────────────────────────────────────────┐
 │  UB (Unified Buffer)     │ Cube (矩阵计算单元)  │ L1 (Local Memory) │
 ├─────────────────────────┼──────────────────────┼───────────────────┤
-│ • Vec_* (向量操作)       │ • Cube_* (矩阵运算)  │ • LocalTensor     │
-│ • Matmul                │ • MMA                │ • LocalAlloc       │
-│ • VecReduce             │ • Load2D/Store2D    │ • LocalSync       │
-│ • Tensor来操作UB        │                     │                   │
+│ • Vec_* (向量操作)       │ • Mmad (矩阵乘累加)  │ • LocalTensor     │
+│ • Matmul                │ • Load2D/Load3D     │ • GlobalTensor    │
+│ • VecReduce             │ • Fixpipe           │ • Coordinate      │
+│ • TensorTrait           │ • Conv2D (废弃)     │ • Layout          │
+│                         │ • Gemm (废弃)       │ • TBuf/TQue       │
 └─────────────────────────┴──────────────────────┴───────────────────┘
 
-按功能分类：
+按功能分类（基于官方文档结构）：
 ┌─────────────────────────────────────────────────────────────────────┐
-│ memory          │ compute          │ sync              │ tensor        │
-├─────────────────┼──────────────────┼───────────────────┼──────────────┤
-│ GmAlloc         │ VecAbs            │ SyncAll           │ Tensor        │
-│ GmFree          │ VecAdd            │ PipeSync          │ TensorShape   │
-│ LocalAlloc      │ VecMul            │ Wait             │ TensorDesc    │
-│ LocalFree       │ VecReduce         │/barrier          │ GlobalTensor  │
-│ Copy            │ Matmul            │                  │ LocalTensor   │
-│ Memcpy          │ Cube              │                  │               │
-│                 │                   │                  │               │
-│ sub:            │ sub:              │ sub:              │ sub:          │
-│  - alloc        │  - vector         │  - global        │  - desc       │
-│  - copy         │  - cube           │  - pipe          │  - view       │
-│  - layout       │  - reduction      │  - event         │  - slice      │
-└─────────────────┴──────────────────┴───────────────────┴──────────────┘
+│ SIMD API基础        │ Memory数据搬运    │ 矩阵计算            │
+│ (基础数据结构)       │                   │ (ISASI扩展)         │
+├─────────────────────┼───────────────────┼─────────────────────┤
+│ LocalTensor          │ DataCopy          │ Mmad                │
+│ GlobalTensor         │ Copy              │ Load2D/Load3D      │
+│ Coordinate           │ SetPadValue       │ SetFmatrix         │
+│ Layout               │ BroadCastVecToMM  │ Fixpipe            │
+│ TensorTrait          │                   │ Conv2D (废弃)      │
+│ 内置数据类型         │                   │ Gemm (废弃)        │
+│ UnaryRepeatParams    │                   │                     │
+│ BinaryRepeatParams   │                   │                     │
+├─────────────────────┼───────────────────┼─────────────────────┤
+│ Memory矢量计算       │ Reg矢量计算       │ 资源管理            │
+├─────────────────────┼───────────────────┼─────────────────────┤
+│ 基础算术: Exp/Ln/Abs │ 寄存器数据类型     │ Pipe和Que框架      │
+│ 逻辑计算: Not/And/Or │ RegTensor          │ TPipe              │
+│ 复合计算: Axpy/Fused │ MaskReg            │ TBufPool           │
+│ 比较选择: Compare    │ AddrReg            │ TQue                │
+│ 类型转换: Cast       │ 搬入/搬出操作     │ TSCM               │
+│ 归约计算: Reduce*    │ MaskReg计算        │ TQueBind           │
+│ 数据转换: Transpose  │ Move/MaskInterleave│ TBuf               │
+│ 数据填充: Duplicate  │ Pack/UnPack       │ 内存管理            │
+│ 排序组合: Sort/Merge │ MoveMask           │ LocalMemAllocator  │
+│ 离散聚合: Gather     │                   │                     │
+│ 掩码操作: SetMask*   │                   │                     │
+├─────────────────────┼───────────────────┼─────────────────────┤
+│ 同步控制             │ 缓存控制           │ 原子操作            │
+├─────────────────────┼───────────────────┼─────────────────────┤
+│ 核内同步: TQueSync  │ DataCachePreload  │ SetAtomicAdd       │
+│ 核间同步: IBSet/Wait │ DataCacheCleanAnd │ AtomicAdd/Min/Max  │
+│ 任务间同步          │ ICachePreLoad      │ AtomicCas/Exch     │
+│ Mutex               │                    │                     │
+├─────────────────────┼───────────────────┼─────────────────────┤
+│ 调试接口             │ 高阶API            │ 工具函数            │
+├─────────────────────┼───────────────────┼─────────────────────┤
+│ 上板打印: DumpTensor │ 数学计算: Tanh/Sin │ NumericLimits      │
+│ 异常检测: assert    │ Matmul侧接口       │ Async              │
+│ CPU孪生调试         │                    │ Kernel Tiling宏    │
+│ 性能统计: Metrics*  │                    │                     │
+├─────────────────────┼───────────────────┼─────────────────────┤
+│ Cube分组管理(ISASI) │ 系统变量访问       │ 标量计算           │
+├─────────────────────┼───────────────────┼─────────────────────┤
+│ CubeResGroupHandle  │ GetBlockNum/Idx   │ GetBitCount        │
+│ GroupBarrier        │ GetArchVersion    │ CountLeadingZero   │
+│ KfcWorkspace        │ GetProgramCounter │ Cast               │
+└─────────────────────┴───────────────────┴─────────────────────┘
 
-按使用频率分类（P0 = 最常用）：
-P0: VecAdd, VecMul, Matmul, Tensor, GmAlloc, SyncAll, Copy
-P1: VecReduce, VecExp, VecLog, Cube, Load2D, Store2D
-P2: VecDiv, VecSqrt, LocalAlloc, PipeSync, Wait
-P3: VecPow, VecLn, MMA, Event
-P4: 特殊用途API
+【重要标记】
+(ISASI) = 昇腾AI Stack Accelerator Interface，扩展接口
+(废弃) = 已废弃接口，勿用
+
+按使用频率分类（P0 = 最常用，基于官方文档示例数量估算）：
+P0: VecMul, VecAdd, LocalTensor, GlobalTensor, DataCopy, Copy
+P1: VecReduce, Load2D, Mmad, SyncAll, Matmul
+P2: Exp, Sqrt, Abs, SetValue/GetValue, TQue, TPipe
+P3: Conv2D/Gemm (已废弃), MMA相关, 特殊扩展接口
+P4: ISASI扩展接口, CubeResGroupHandle, KfcWorkspace
 ```
 
 ### 2.3 API存储结构（Milvus + Redis）
@@ -577,9 +729,13 @@ class DocSpider:
     """昇腾官方文档爬虫"""
 
     OFFICIAL_DOC_URLS = [
-        "https://www.hiascend.com/document/detail/ascendC_API/",
-        "https://www.hiascend.com/document/detail/ascendC DevGuide/",
-        # ... 其他文档URL
+        # AscendC API参考 - CANN 9.0.0-beta.2 (实测可用)
+        "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta2/API/ascendcopapi/atlasascendc_api_07_0003.html",  # API列表页
+        "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta2/API/ascendcopapi/atlasascendc_api_07_0006.html",  # LocalTensor
+        "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta2/API/ascendcopapi/atlasascendc_api_07_0012.html",  # UnaryRepeatParams
+        "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta2/API/ascendcopapi/atlasascendc_api_07_0013.html",  # BinaryRepeatParams
+        # 文档URL模式: atlasascendc_api_07_XXXX.html (XXXX为页面序号)
+        # 左侧导航包含完整API列表，页面内按功能分组
     ]
 
     async def crawl_official_docs(self) -> List[DocPage]:
