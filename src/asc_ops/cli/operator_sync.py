@@ -359,7 +359,12 @@ class OperatorSync:
         # 抽取知识
         if result["is_bug"] and self._bug_extractor:
             try:
-                bug_result = await self._bug_extractor.extract(pr.title, pr.body)
+                bug_result = self._bug_extractor.extract(
+                    pr_title=pr.title,
+                    pr_body=pr.body,
+                    source_repo=pr.repo,
+                    source_pr=str(pr.pr_number),
+                )
                 if bug_result:
                     result["bug_count"] = 1
                     # 存储知识
@@ -369,7 +374,12 @@ class OperatorSync:
 
         if result["is_optimization"] and self._opt_extractor:
             try:
-                opt_result = await self._opt_extractor.extract(pr.title, pr.body)
+                opt_result = self._opt_extractor.extract(
+                    pr_title=pr.title,
+                    pr_body=pr.body,
+                    source_repo=pr.repo,
+                    source_pr=str(pr.pr_number),
+                )
                 if opt_result:
                     result["opt_count"] = 1
                     # 存储知识

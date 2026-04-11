@@ -66,6 +66,9 @@ class GitCodeCollector:
         Args:
             token: GitCode Access Token (可选)
         """
+        # 尝试加载 .env 文件
+        self._load_env()
+
         self._token = token or os.environ.get("GITCODE_TOKEN", "")
         self._session = requests.Session()
 
@@ -79,6 +82,18 @@ class GitCodeCollector:
             self._session.headers.update({
                 "PRIVATE-TOKEN": self._token
             })
+
+    def _load_env(self):
+        """从项目根目录加载 .env 文件"""
+        try:
+            from dotenv import load_dotenv
+            from pathlib import Path
+            # 从 src/asc_ops/collector 向上找项目根目录
+            env_path = Path(__file__).parent.parent.parent.parent / ".env"
+            if env_path.exists():
+                load_dotenv(env_path)
+        except ImportError:
+            pass  # dotenv 未安装
 
     def _build_url(self, endpoint: str) -> str:
         """构建 API URL"""
@@ -97,19 +112,24 @@ class GitCodeCollector:
         Args:
             repo: 仓库名称 (owner/repo)
             since_date: 只获取此日期之后的 PR
-            state: PR 状态 (open, closed, all)
+            state: PR 状态 (open, closed, merged, all)
             max_count: 最大获取数量
 
         Returns:
             GitCodePR 列表
         """
         try:
+            # GitCode 使用 "merged" 而不是 "closed" 表示已合并的 MR
+            # 自动映射常见的 state 值
+            if state == "closed":
+                state = "merged"
+
             # 构建 API URL
             # GitCode API: GET /api/v5/repos/{owner}/{repo}/pulls
             url = self._build_url(f"/repos/{repo}/pulls")
 
             params = {
-                "state": state,  # open, closed, all
+                "state": state,  # open, closed, merged, all
                 "sort": "updated",
                 "direction": "desc",
                 "per_page": 100,
@@ -129,8 +149,14 @@ class GitCodeCollector:
                 # 解析 PR 数据
                 pr = self._parse_pr(pr_data, repo)
 
-                # 过滤已合并的 PR (只有 merged=True 的才是合并的)
-                if not pr_data.get("merged", False):
+                # 过滤已合并的 MR
+                # GitCode 使用 state == "merged" 表示已合并
+                # 或者 merged_at 有值
+                state = pr_data.get("state", "")
+                merged_at = pr_data.get("merged_at")
+                is_merged = (state == "merged") or bool(merged_at)
+
+                if not is_merged:
                     continue
 
                 # 过滤日期
