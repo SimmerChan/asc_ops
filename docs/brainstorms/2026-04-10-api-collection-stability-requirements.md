@@ -1,9 +1,13 @@
 ---
 date: 2026-04-10
 topic: ascendc-api-collection-stability
+status: completed
+completed: 2026-04-10
 ---
 
 # AscendC API采集稳定性需求
+
+**状态**: ✅ 已在 Phase 2 中实现（重试机制、限流、checkpoint等）
 
 ## Problem Frame
 

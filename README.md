@@ -160,4 +160,34 @@ asc_ops/
 
 **License**: Apache 2.0
 **Author**: SimmerChan
-**Version**: 0.1.0
+**Version**: 1.0.0 (MVP完成)
+
+---
+
+## 开发状态
+
+### MVP完成状态 ✅
+
+| 阶段 | 状态 | 完成日期 |
+|------|------|----------|
+| Phase 1: 双存储架构 | ✅ 已完成 | 2026-04-10 |
+| Phase 2: 原子化知识图谱 | ✅ 已完成 | 2026-04-10 |
+| Phase 3: 置信度感知排序层 | ✅ 已完成 | 2026-04-10 |
+| Phase 4: 知识质量评分体系 | ✅ 已完成 | 2026-04-10 |
+| Phase 5: Bug/优化知识设计 | ✅ 已完成 | 2026-04-11 |
+
+### 测试覆盖
+
+- **单元测试**: 563+ 测试用例
+- **集成测试**: 端到端测试覆盖
+- **总测试数**: 580 个测试
+
+### 核心模块
+
+| 模块 | 路径 | 说明 |
+|------|------|------|
+| 知识存储 | `src/asc_ops/storage/` | ChromaDB + Redis 双存储 |
+| 知识抽取 | `src/asc_ops/extractor/` | API/Bug/优化知识抽取 |
+| 置信度排序 | `src/asc_ops/ranker/` | Authority × Recency × Accuracy |
+| 质量评分 | `src/asc_ops/quality/` | 引用追踪与反馈闭环 |
+| 查询服务 | `src/asc_ops/knowledge_query.py` | 统一查询接口 |
