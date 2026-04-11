@@ -20,12 +20,18 @@
 ## Scope Boundaries
 
 **在范围内**:
-- 本地 Git 仓库 diff 获取
+- ~~本地 Git 仓库 diff 获取~~ (见下方"方案变更")
 - BugExtractor 的 diff 上下文支持
 - BatchBugExtractor 集成
 
+**方案变更 (2026-04-12)**:
+- 原计划使用本地 Git 仓库 (`/tmp/ascend_repos/{repo}`) 获取 diff
+- 实际验证发现 91.7% 的缺失记录是 GitCode PR，无本地 Git 仓库
+- **新方案**: 实现 GitCodeDiffProvider，直接从 GitCode PR Files API 获取 diff
+- API端点: `GET /repos/{repo}/pulls/{pr}/files`
+- 覆盖所有 GitCode 上的 CANN 仓库 PR
+
 **不在范围内**:
-- GitHub/GitCode API 获取 diff
 - 人工标注流程
 - Diff 的结构化解析（让 LLM 自己分析）
 
@@ -38,7 +44,7 @@
 
 ## Implementation Units
 
-- [ ] **Unit 1: GitDiffProvider 工具类**
+- [x] **Unit 1: GitDiffProvider 工具类** ✅
 
 **Goal:** 提供从本地 Git 仓库获取 commit diff 的统一接口
 
@@ -71,7 +77,7 @@
 
 ---
 
-- [ ] **Unit 2: BugExtractor diff 支持**
+- [x] **Unit 2: BugExtractor diff 支持** ✅
 
 **Goal:** BugExtractor 支持 pr_diff 参数，增强 LLM prompt 引导分析
 
@@ -118,7 +124,7 @@ Code Diff:
 
 ---
 
-- [ ] **Unit 3: BatchBugExtractor diff 集成**
+- [x] **Unit 3: BatchBugExtractor diff 集成** ✅
 
 **Goal:** 批量抽取前自动获取 diff 并传递给 BugExtractor
 
@@ -148,6 +154,29 @@ Code Diff:
 **Verification:**
 - 单元测试通过
 - 手动验证: `python scripts/llm_retry_batch.py --limit 3` 能正确获取并使用 diff
+
+---
+
+- [ ] **Unit 3b: GitCodeDiffProvider 实现** ✅
+
+**Goal:** 从 GitCode API 获取 PR diff，覆盖无法使用本地 Git 仓库的记录
+
+**Requirements:** R3 (补充)
+
+**Dependencies:** None
+
+**Files:**
+- Create: `src/asc_ops/extractor/gitcode_diff_provider.py`
+- Test: `tests/unit/extractor/test_gitcode_diff_provider.py`
+
+**Approach:**
+- GitCode PR Files API: `GET /repos/{repo}/pulls/{pr}/files`
+- 支持新旧 bug_id 格式自动转换
+- BatchBugExtractor 优先使用 GitCode API，失败时降级到本地 Git
+
+**Verification:**
+- 12 个单元测试通过
+- E2E 验证：10 个 bug 中 4 个成功获取 diff
 
 ---
 

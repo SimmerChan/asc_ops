@@ -44,7 +44,7 @@ class TestKnowledgeStorage:
         success = self.storage.store_bugfix(result)
 
         assert success is True
-        self.mock_chroma.add.assert_called_once()
+        self.mock_chroma.upsert.assert_called_once()
         self.mock_redis.hset.assert_called_once()
         self.mock_redis.sadd.assert_called_once()
 
@@ -65,7 +65,7 @@ class TestKnowledgeStorage:
         success = self.storage.store_bugfix(result)
 
         assert success is False
-        self.mock_chroma.add.assert_not_called()
+        self.mock_chroma.upsert.assert_not_called()
         self.mock_redis.hset.assert_not_called()
 
     def test_store_optimization_success(self):
@@ -88,7 +88,7 @@ class TestKnowledgeStorage:
         success = self.storage.store_optimization(result)
 
         assert success is True
-        self.mock_chroma.add.assert_called_once()
+        self.mock_chroma.upsert.assert_called_once()
         self.mock_redis.hset.assert_called_once()
         self.mock_redis.sadd.assert_called_once()
 
@@ -109,7 +109,7 @@ class TestKnowledgeStorage:
         success = self.storage.store_optimization(result)
 
         assert success is False
-        self.mock_chroma.add.assert_not_called()
+        self.mock_chroma.upsert.assert_not_called()
         self.mock_redis.hset.assert_not_called()
 
     def test_store_bugfix_without_chroma(self):
@@ -130,7 +130,7 @@ class TestKnowledgeStorage:
         success = storage.store_bugfix(result)
 
         assert success is True
-        self.mock_chroma.add.assert_not_called()
+        self.mock_chroma.upsert.assert_not_called()
         self.mock_redis.hset.assert_called_once()
 
     def test_store_bugfix_without_redis(self):
@@ -151,7 +151,7 @@ class TestKnowledgeStorage:
         success = storage.store_bugfix(result)
 
         assert success is True
-        self.mock_chroma.add.assert_called_once()
+        self.mock_chroma.upsert.assert_called_once()
         self.mock_redis.hset.assert_not_called()
 
     def test_generate_bugfix_text(self):
@@ -409,7 +409,7 @@ class TestKnowledgeStorage:
 
         assert success is True
         # 不应存储到 ChromaDB
-        self.mock_chroma.add.assert_not_called()
+        self.mock_chroma.upsert.assert_not_called()
         # 应存储到 Redis
         self.mock_redis.hset.assert_called()
         self.mock_redis.sadd.assert_called()
@@ -431,7 +431,7 @@ class TestKnowledgeStorage:
         success = self.storage.store_optimization(result, store_failed=True)
 
         assert success is True
-        self.mock_chroma.add.assert_not_called()
+        self.mock_chroma.upsert.assert_not_called()
         self.mock_redis.hset.assert_called()
         self.mock_redis.sadd.assert_called()
 

@@ -120,6 +120,35 @@ class ChromaDBClient:
             f"Upserted {len(ids)} vectors into collection '{collection_name}'"
         )
 
+    def upsert(
+        self,
+        collection: str,
+        ids: list[str],
+        documents: Optional[list[str]] = None,
+        metadatas: Optional[list[dict]] = None,
+        embeddings: Optional[list[list[float]]] = None,
+    ) -> None:
+        """
+        插入或更新向量到 collection
+
+        Args:
+            collection: collection 名称
+            ids: 向量 ID 列表
+            documents: 文档内容列表 (可选)
+            metadatas: 元数据列表 (可选)
+            embeddings: 向量列表 (可选)
+        """
+        collection_obj = self.get_or_create_collection(collection)
+        collection_obj.upsert(
+            ids=ids,
+            documents=documents,
+            metadatas=metadatas,
+            embeddings=embeddings,
+        )
+        logger.debug(
+            f"Upserted {len(ids)} items to collection '{collection}'"
+        )
+
     def add(
         self,
         collection: str,

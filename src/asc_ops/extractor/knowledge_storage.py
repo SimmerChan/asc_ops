@@ -69,7 +69,7 @@ class KnowledgeStorage:
 
             # 存储到 ChromaDB (向量)
             if self._chroma:
-                self._chroma.add(
+                self._chroma.upsert(
                     collection=collection_name,
                     documents=[text_content],
                     metadatas=[self._bugfix_to_metadata(result)],
@@ -116,7 +116,7 @@ class KnowledgeStorage:
 
             # 存储到 ChromaDB (向量)
             if self._chroma:
-                self._chroma.add(
+                self._chroma.upsert(
                     collection=collection_name,
                     documents=[text_content],
                     metadatas=[self._optimization_to_metadata(result)],
