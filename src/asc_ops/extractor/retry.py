@@ -56,10 +56,43 @@ class LLMBasedRetry:
 
     async def _get_llm_client(self) -> UnifiedLLMClient:
         """获取或创建 LLM 客户端"""
+        import os
+        from pathlib import Path
+
         if self._llm_client:
             return self._llm_client
 
-        client = UnifiedLLMClient(provider=self._provider)
+        # 尝试加载 .env 文件
+        # 从项目根目录加载 .env
+        env_path = Path(__file__).parent.parent.parent.parent / ".env"
+        if env_path.exists():
+            from dotenv import load_dotenv
+            load_dotenv(env_path)
+
+        # 从环境变量获取 API key
+        api_key = ""
+        api_base = None
+
+        provider_lower = self._provider.lower()
+        if provider_lower == "minimax":
+            # MiniMax 可能使用 Anthropic 兼容 API
+            api_key = os.environ.get("MINIMAX_API_KEY", "") or os.environ.get("ANTHROPIC_API_KEY", "")
+            api_base = os.environ.get("MINIMAX_API_BASE") or os.environ.get("ANTHROPIC_API_BASE")
+        elif provider_lower == "anthropic":
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            api_base = os.environ.get("ANTHROPIC_API_BASE")
+        elif provider_lower == "openai":
+            api_key = os.environ.get("OPENAI_API_KEY", "")
+            api_base = os.environ.get("OPENAI_API_BASE")
+        elif provider_lower == "zhipu":
+            api_key = os.environ.get("ZHIPU_API_KEY", "")
+            api_base = os.environ.get("ZHIPU_API_BASE")
+
+        client = UnifiedLLMClient(
+            provider=self._provider,
+            api_key=api_key,
+            api_base=api_base,
+        )
         await client.connect()
         return client
 
@@ -259,22 +292,18 @@ async def create_retry_instance(
         LLMBasedRetry 实例
     """
     if storage is None:
-        from ..config import get_config
+        import os
         from ..storage.redis_client import RedisClient
         from ..storage.chroma_client import ChromaDBClient
 
-        config = get_config()
-        redis_config = config.redis
-        chroma_config = config.chroma
-
         redis_client = RedisClient(
-            host=redis_config.host,
-            port=redis_config.port,
-            db=redis_config.db,
-            password=redis_config.password,
+            host=os.environ.get("REDIS_HOST", "localhost"),
+            port=int(os.environ.get("REDIS_PORT", "6379")),
+            db=int(os.environ.get("REDIS_DB", "0")),
+            password=os.environ.get("REDIS_PASSWORD"),
         )
         chroma_client = ChromaDBClient(
-            persist_directory=chroma_config.db_path,
+            persist_directory=os.environ.get("CHROMA_DB_PATH", "./data/chroma_db"),
         )
         storage = KnowledgeStorage(chroma_client=chroma_client, redis_client=redis_client)
 

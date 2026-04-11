@@ -260,7 +260,7 @@ class BugExtractor:
 
             response = await self._llm_client.chat(
                 messages=messages,
-                max_tokens=1024,
+                max_tokens=2048,
                 temperature=0.3,
             )
 

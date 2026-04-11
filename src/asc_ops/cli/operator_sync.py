@@ -14,14 +14,19 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
+from ..collector.github_client import GitHubCollector
+
 logger = logging.getLogger(__name__)
 
 
 # 昇腾算子仓库列表
 ASCEND_REPOS = [
-    "ascend/cann-ann",       # 算子仓库 A
-    "ascend/cann-b",         # 算子仓库 B
-    # 可以继续添加更多仓库
+    "ascend-community/HierarchicalKV-ascend",
+    "ascend-community/fbgemm-ascend",
+    "ascend-community/ops-nn",
+    "ascend-community/ops-math",
+    "ascend-community/ops-transformer",
+    "ascend-community/ops-cv",
 ]
 
 
@@ -128,8 +133,8 @@ class OperatorSync:
 
         result = OperatorSyncResult()
 
-        # 拉取 PR 列表
-        prs = await self._fetch_prs(repo)
+        # 拉取 PR 列表 (在独立线程中执行同步 IO)
+        prs = await asyncio.to_thread(self._fetch_prs, repo)
         result.total_prs = len(prs)
 
         logger.info(f"  发现 {len(prs)} 个 PR")
@@ -150,7 +155,7 @@ class OperatorSync:
 
         return result
 
-    async def _fetch_prs(self, repo: str) -> List[OperatorPR]:
+    def _fetch_prs(self, repo: str) -> List[OperatorPR]:
         """
         获取仓库的 PR 列表
 
@@ -160,35 +165,31 @@ class OperatorSync:
         Returns:
             PR 列表
         """
-        # TODO: 接入 GitHub API
-        # 目前返回模拟数据
-        logger.info(f"  获取 PR 列表 (模拟)...")
+        logger.info(f"  获取 PR 列表: {repo}")
 
-        # 模拟一些 PR
-        mock_prs = [
-            OperatorPR(
-                pr_number=1,
-                title="fix: Matmul kernel crash on large input",
-                body="Fix a crash issue when input size exceeds 2GB",
-                state="closed",
-                merged_at=datetime.now(),
-                author="contributor1",
-                labels=["bug", "matmul"],
-                repo=repo,
-            ),
-            OperatorPR(
-                pr_number=2,
-                title="perf: Optimize VecReduce by 30%",
-                body="Improve VecReduce performance through pipelining",
-                state="closed",
-                merged_at=datetime.now(),
-                author="contributor2",
-                labels=["enhancement", "optimization"],
-                repo=repo,
-            ),
-        ]
+        # 使用 GitHubCollector 获取 PR
+        collector = GitHubCollector()
+        github_prs = collector.fetch_prs(
+            repo=repo,
+            since_date=self._since_date,
+            state="closed",
+        )
 
-        return mock_prs
+        # 转换为 OperatorPR
+        prs = []
+        for gh_pr in github_prs:
+            prs.append(OperatorPR(
+                pr_number=gh_pr.pr_number,
+                title=gh_pr.title,
+                body=gh_pr.body,
+                state=gh_pr.state,
+                merged_at=gh_pr.merged_at,
+                author=gh_pr.author,
+                labels=gh_pr.labels,
+                repo=repo,
+            ))
+
+        return prs
 
     async def _process_pr(self, pr: OperatorPR) -> Dict[str, Any]:
         """
