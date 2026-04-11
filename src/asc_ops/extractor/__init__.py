@@ -10,6 +10,7 @@
 from .classifier import PRClassifier, PRType, ClassificationResult
 from .bug_extractor import BugExtractor, BugExtractionResult
 from .opt_extractor import OptimizationExtractor, OptimizationExtractionResult
+from .retry import LLMBasedRetry, RetryStats, create_retry_instance
 
 __all__ = [
     "PRClassifier",
@@ -19,4 +20,7 @@ __all__ = [
     "BugExtractionResult",
     "OptimizationExtractor",
     "OptimizationExtractionResult",
+    "LLMBasedRetry",
+    "RetryStats",
+    "create_retry_instance",
 ]
