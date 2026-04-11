@@ -55,24 +55,33 @@ class PRClassifier:
     BUGFIX_HIGH_WEIGHT = {
         "fix", "bug", "patch", "resolve", "close",
         "hotfix", "bugfix", "bug-fix",
+        # 中文关键词
+        "修复", "解决", "修正", "修补",
     }
 
     # BugFix 关键词 (低权重)
     BUGFIX_LOW_WEIGHT = {
         "error", "issue", "problem", "crash", "fail",
         "exception", "incorrect", "wrong",
+        # 中文关键词
+        "异常", "问题", "错误", "失败", "崩溃",
+        "精度", "回归", "缺陷", "故障",
     }
 
     # Optimization 关键词 (高权重)
     OPTIM_HIGH_WEIGHT = {
         "optim", "perf", "performance", "speed", "fast",
         "memory", "throughput", "latency", "efficiency",
+        # 中文关键词
+        "优化", "加速", "提升", "改进",
     }
 
     # Optimization 关键词 (低权重)
     OPTIM_LOW_WEIGHT = {
         "improve", "enhance", "better", "reduce", "minimize",
         "maximize", "boost", "accelerate",
+        # 中文关键词
+        "改善", "增强", "提高", "缩减", "降低",
     }
 
     # Feature 关键词
@@ -241,16 +250,19 @@ class PRClassifier:
         """
         分词
 
-        将文本分割为单词，去除常见前缀和标点
+        将文本分割为单词/词组，去除常见前缀和标点
+        支持中英文
         """
         # 转小写
         text = text.lower()
 
         # 去除常见前缀 (fix:, feat:, optim: 等) 但保留关键词本身
-        # \b([a-z]+): 匹配 "fix:" 并替换为 "fix"
         text = re.sub(r"\b([a-z]+):", r"\1", text)
 
-        # 分割单词
-        words = re.findall(r"[a-z]+", text)
+        # 分割英文单词
+        english_words = re.findall(r"[a-z]+", text)
 
-        return words
+        # 提取中文词组 (2-4个字符的连续中文)
+        chinese_words = re.findall(r"[\u4e00-\u9fff]{2,4}", text)
+
+        return english_words + chinese_words

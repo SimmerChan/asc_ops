@@ -120,6 +120,38 @@ class ChromaDBClient:
             f"Upserted {len(ids)} vectors into collection '{collection_name}'"
         )
 
+    def add(
+        self,
+        collection: str,
+        ids: list[str],
+        documents: Optional[list[str]] = None,
+        metadatas: Optional[list[dict]] = None,
+        embeddings: Optional[list[list[float]]] = None,
+    ) -> None:
+        """
+        添加向量到 collection (不带 embedding 的简化接口)
+
+        注意: 如果不提供 embeddings，ChromaDB 会使用默认 embedding 函数。
+        但为了一致性，建议使用 upsert_vector 并自行生成 embeddings。
+
+        Args:
+            collection: collection 名称
+            ids: 向量 ID 列表
+            documents: 文档内容列表 (可选)
+            metadatas: 元数据列表 (可选)
+            embeddings: 向量列表 (可选)
+        """
+        collection_obj = self.get_or_create_collection(collection)
+        collection_obj.add(
+            ids=ids,
+            documents=documents,
+            metadatas=metadatas,
+            embeddings=embeddings,
+        )
+        logger.debug(
+            f"Added {len(ids)} items to collection '{collection}'"
+        )
+
     def query(
         self,
         collection_name: str,
