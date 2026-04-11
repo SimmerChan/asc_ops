@@ -390,3 +390,117 @@ class TestKnowledgeStorage:
         assert mapping["optimization_type"] == "pipeline|memory"
         assert mapping["optimization_description"] == "Enabled pipelining"
         assert mapping["improvement_ratio"] == "0.3"
+
+    def test_store_bugfix_failure_stores_when_flag(self):
+        """抽取失败的 BugFix 在 store_failed=True 时存储"""
+        result = BugExtractionResult(
+            bug_id="BUG-ascend-cann-1234",
+            operator_id="Matmul",
+            source_repo="ascend-cann",
+            source_pr="1234",
+            bug_title="Memory leak in Matmul",
+            root_cause=None,
+            fix_pattern=None,
+            extraction_success=False,
+            error_message="Rule extraction failed",
+        )
+
+        success = self.storage.store_bugfix(result, store_failed=True)
+
+        assert success is True
+        # 不应存储到 ChromaDB
+        self.mock_chroma.add.assert_not_called()
+        # 应存储到 Redis
+        self.mock_redis.hset.assert_called()
+        self.mock_redis.sadd.assert_called()
+
+    def test_store_optimization_failure_stores_when_flag(self):
+        """抽取失败的 Optimization 在 store_failed=True 时存储"""
+        result = OptimizationExtractionResult(
+            opt_id="OPT-ascend-cann-5678",
+            operator_id="VecReduce",
+            source_repo="ascend-cann",
+            source_pr="5678",
+            opt_title="Pipeline optimization",
+            optimization_type=[],
+            optimization_description=None,
+            extraction_success=False,
+            error_message="Rule extraction failed",
+        )
+
+        success = self.storage.store_optimization(result, store_failed=True)
+
+        assert success is True
+        self.mock_chroma.add.assert_not_called()
+        self.mock_redis.hset.assert_called()
+        self.mock_redis.sadd.assert_called()
+
+    def test_get_failed_bugfixes(self):
+        """获取失败的 BugFix 列表"""
+        self.mock_redis.smembers.return_value = {"BUG-ascend-cann-1234", "BUG-ascend-cann-5678"}
+        self.mock_redis.hgetall.side_effect = [
+            {
+                "bug_id": "BUG-ascend-cann-1234",
+                "operator_id": "Matmul",
+                "source_repo": "ascend-cann",
+                "source_pr": "1234",
+                "bug_title": "Memory leak",
+                "error_message": "extraction_failed",
+            },
+            {
+                "opt_id": "OPT-ascend-cann-5678",
+                "operator_id": "VecReduce",
+                "source_repo": "ascend-cann",
+                "source_pr": "5678",
+                "opt_title": "Pipeline opt",
+                "error_message": "extraction_failed",
+            },
+        ]
+
+        failed = self.storage.get_failed_bugfixes()
+
+        assert len(failed) == 2
+        self.mock_redis.smembers.assert_called_with("bugfix:failed:all")
+
+    def test_get_failed_optimizations(self):
+        """获取失败的 Optimization 列表"""
+        self.mock_redis.smembers.return_value = {"OPT-ascend-cann-5678"}
+        self.mock_redis.hgetall.return_value = {
+            "opt_id": "OPT-ascend-cann-5678",
+            "operator_id": "VecReduce",
+            "source_repo": "ascend-cann",
+            "source_pr": "5678",
+            "opt_title": "Pipeline opt",
+            "error_message": "extraction_failed",
+        }
+
+        failed = self.storage.get_failed_optimizations()
+
+        assert len(failed) == 1
+        assert failed[0]["opt_id"] == "OPT-ascend-cann-5678"
+
+    def test_mark_retry_success(self):
+        """标记重试成功"""
+        self.storage.mark_retry_success(bug_id="BUG-ascend-cann-1234")
+
+        self.mock_redis.srem.assert_called_with("bugfix:failed:all", "BUG-ascend-cann-1234")
+        self.mock_redis.delete.assert_called_with("bugfix:failed:BUG-ascend-cann-1234")
+
+    def test_failed_bugfix_without_redis(self):
+        """没有 Redis 时 store_failed=True 返回 False"""
+        storage = KnowledgeStorage(chroma_client=self.mock_chroma, redis_client=None)
+
+        result = BugExtractionResult(
+            bug_id="BUG-ascend-cann-1234",
+            operator_id="Matmul",
+            source_repo="ascend-cann",
+            source_pr="1234",
+            bug_title="Memory leak",
+            root_cause=None,
+            fix_pattern=None,
+            extraction_success=False,
+        )
+
+        success = storage.store_bugfix(result, store_failed=True)
+
+        assert success is False

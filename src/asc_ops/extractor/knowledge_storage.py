@@ -44,6 +44,7 @@ class KnowledgeStorage:
         self,
         result: BugExtractionResult,
         collection_name: str = "bug_fixes",
+        store_failed: bool = False,
     ) -> bool:
         """
         存储 Bug 修复知识
@@ -51,11 +52,14 @@ class KnowledgeStorage:
         Args:
             result: Bug 抽取结果
             collection_name: ChromaDB collection 名称
+            store_failed: 是否存储抽取失败的知识 (冷启动场景)
 
         Returns:
             bool: 是否存储成功
         """
         if not result.extraction_success:
+            if store_failed:
+                return self._store_failed_bugfix(result)
             logger.warning(f"BugFix {result.bug_id} extraction failed, skipping storage")
             return False
 
@@ -87,6 +91,7 @@ class KnowledgeStorage:
         self,
         result: OptimizationExtractionResult,
         collection_name: str = "optimizations",
+        store_failed: bool = False,
     ) -> bool:
         """
         存储优化知识
@@ -94,11 +99,14 @@ class KnowledgeStorage:
         Args:
             result: 优化抽取结果
             collection_name: ChromaDB collection 名称
+            store_failed: 是否存储抽取失败的知识 (冷启动场景)
 
         Returns:
             bool: 是否存储成功
         """
         if not result.extraction_success:
+            if store_failed:
+                return self._store_failed_optimization(result)
             logger.warning(f"Optimization {result.opt_id} extraction failed, skipping storage")
             return False
 
@@ -235,6 +243,149 @@ class KnowledgeStorage:
         # 添加到算子索引
         for opt_type in result.optimization_type:
             self._redis.sadd(f"operator:{result.operator_id}:opts:{opt_type}", result.opt_id)
+
+    def _store_failed_bugfix(self, result: BugExtractionResult) -> bool:
+        """
+        存储抽取失败的 BugFix (仅 Redis，用于冷启动追踪)
+
+        Args:
+            result: Bug 抽取结果
+
+        Returns:
+            bool: 是否存储成功
+        """
+        if not self._redis:
+            logger.warning("No Redis client, cannot store failed bugfix")
+            return False
+
+        try:
+            key = f"bugfix:failed:{result.bug_id}"
+
+            self._redis.hset(key, mapping={
+                "bug_id": result.bug_id,
+                "operator_id": result.operator_id,
+                "source_repo": result.source_repo,
+                "source_pr": result.source_pr,
+                "bug_title": result.bug_title,
+                "error_message": result.error_message or "",
+                "error_type": "extraction_failed",
+            })
+
+            # 添加到失败列表索引
+            self._redis.sadd("bugfix:failed:all", result.bug_id)
+
+            logger.info(f"Failed BugFix {result.bug_id} stored for later retry")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to store failed BugFix {result.bug_id}: {e}")
+            return False
+
+    def _store_failed_optimization(self, result: OptimizationExtractionResult) -> bool:
+        """
+        存储抽取失败的 Optimization (仅 Redis，用于冷启动追踪)
+
+        Args:
+            result: Optimization 抽取结果
+
+        Returns:
+            bool: 是否存储成功
+        """
+        if not self._redis:
+            logger.warning("No Redis client, cannot store failed optimization")
+            return False
+
+        try:
+            key = f"optimization:failed:{result.opt_id}"
+
+            self._redis.hset(key, mapping={
+                "opt_id": result.opt_id,
+                "operator_id": result.operator_id,
+                "source_repo": result.source_repo,
+                "source_pr": result.source_pr,
+                "opt_title": result.opt_title,
+                "error_message": result.error_message or "",
+                "error_type": "extraction_failed",
+            })
+
+            # 添加到失败列表索引
+            self._redis.sadd("optimization:failed:all", result.opt_id)
+
+            logger.info(f"Failed Optimization {result.opt_id} stored for later retry")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to store failed Optimization {result.opt_id}: {e}")
+            return False
+
+    def get_failed_bugfixes(self, limit: int = 100) -> List[dict]:
+        """
+        获取抽取失败的 BugFix 列表 (用于后续 LLM 重试)
+
+        Args:
+            limit: 最大返回数量
+
+        Returns:
+            List[dict]: 失败的 BugFix 信息列表
+        """
+        if not self._redis:
+            return []
+
+        failed = []
+        bug_ids = self._redis.smembers("bugfix:failed:all")
+
+        for bug_id in list(bug_ids)[:limit]:
+            key = f"bugfix:failed:{bug_id}"
+            data = self._redis.hgetall(key)
+            if data:
+                failed.append(data)
+
+        return failed
+
+    def get_failed_optimizations(self, limit: int = 100) -> List[dict]:
+        """
+        获取抽取失败的 Optimization 列表 (用于后续 LLM 重试)
+
+        Args:
+            limit: 最大返回数量
+
+        Returns:
+            List[dict]: 失败的 Optimization 信息列表
+        """
+        if not self._redis:
+            return []
+
+        failed = []
+        opt_ids = self._redis.smembers("optimization:failed:all")
+
+        for opt_id in list(opt_ids)[:limit]:
+            key = f"optimization:failed:{opt_id}"
+            data = self._redis.hgetall(key)
+            if data:
+                failed.append(data)
+
+        return failed
+
+    def mark_retry_success(self, bug_id: str = None, opt_id: str = None) -> None:
+        """
+        标记重试成功，从失败列表移除
+
+        Args:
+            bug_id: BugFix ID (二选一)
+            opt_id: Optimization ID (二选一)
+        """
+        if not self._redis:
+            return
+
+        if bug_id:
+            self._redis.srem("bugfix:failed:all", bug_id)
+            self._redis.delete(f"bugfix:failed:{bug_id}")
+            logger.info(f"BugFix {bug_id} removed from failed list after retry success")
+
+        if opt_id:
+            self._redis.srem("optimization:failed:all", opt_id)
+            self._redis.delete(f"optimization:failed:{opt_id}")
+            logger.info(f"Optimization {opt_id} removed from failed list after retry success")
 
     def is_duplicate(self, source_repo: str, source_pr: str) -> bool:
         """
