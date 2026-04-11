@@ -126,6 +126,7 @@ class KnowledgeQueryService:
         used_apis: Optional[List[str]] = None,
         include_related: bool = False,
         include_api_details: bool = False,
+        use_confidence_ranking: bool = True,
         limit: int = 5,
     ) -> "TroubleshootingResult":
         """
@@ -138,6 +139,7 @@ class KnowledgeQueryService:
             used_apis: 使用的API列表
             include_related: 是否包含关联知识
             include_api_details: 是否包含API详情
+            use_confidence_ranking: 是否使用置信度感知排序 (默认True)
             limit: 返回数量
 
         Returns:
@@ -161,6 +163,10 @@ class KnowledgeQueryService:
             limit=limit,
         )
 
+        # 应用置信度感知排序
+        if use_confidence_ranking and bug_fixes:
+            bug_fixes = await self._apply_confidence_ranking(bug_fixes, "bug")
+
         # 转换为 PossibleCause
         possible_causes = []
         for bug in bug_fixes:
@@ -173,6 +179,9 @@ class KnowledgeQueryService:
                 suggested_fix=bug.fix_pattern,
                 suggested_checks=self._generate_checks(bug),
             ))
+
+        # 记录引用 (追踪知识被查询的次数)
+        self._record_citations_for_results(bug_fixes, "bug")
 
         # 查询关联 API
         related_apis = []
@@ -587,6 +596,10 @@ class KnowledgeQueryService:
             else:
                 source_type = "other"
 
+            # 获取引用统计 (用于准确性评分)
+            item_id = getattr(item, "bug_id", None) or getattr(item, "opt_id", None) or str(item)
+            citation_stats = self._citation_tracker.get_stats(item_id, item_type)
+
             # 构建元数据
             metadata = {
                 "source_type": source_type,
@@ -595,9 +608,11 @@ class KnowledgeQueryService:
                 "confidence": getattr(item, "confidence", 0.5),
                 "source_repo": source_repo,
                 "source_pr": getattr(item, "source_pr", ""),
+                # 引用追踪数据 (用于准确性评分)
+                "citation_count": citation_stats.citation_count,
+                "correction_count": citation_stats.correction_count,
             }
 
-            item_id = getattr(item, "bug_id", None) or getattr(item, "opt_id", None) or str(item)
             item_dict = {
                 "id": item_id,
                 "score": getattr(item, "confidence", 0.5),
@@ -608,12 +623,21 @@ class KnowledgeQueryService:
         # 使用置信度排序器排序
         ranked_items = await self._confidence_ranker.rank_results(item_dicts, top_k=len(item_dicts))
 
-        # 按排序顺序重新组织原始对象
+        # 按排序顺序重新组织原始对象，并更新置信度
         id_to_item = {
             getattr(item, "bug_id", None) or getattr(item, "opt_id", None): item
             for item in items
         }
-        sorted_items = [id_to_item[item.id] for item in ranked_items if item.id in id_to_item]
+        id_to_ranked = {item.id: item for item in ranked_items}
+
+        sorted_items = []
+        for item in items:
+            item_id = getattr(item, "bug_id", None) or getattr(item, "opt_id", None)
+            if item_id in id_to_ranked:
+                ranked_item = id_to_ranked[item_id]
+                # 更新置信度为综合评分
+                item.confidence = ranked_item.score.total
+                sorted_items.append(item)
 
         return sorted_items
 

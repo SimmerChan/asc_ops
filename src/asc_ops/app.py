@@ -39,7 +39,8 @@ async def health():
 
 
 # 路由
-from .routes import query_router, management_router
+from .routes import query_router, management_router, feedback_router
 
 app.include_router(query_router, prefix="/api/v1/query", tags=["query"])
 app.include_router(management_router, prefix="/api/v1", tags=["management"])
+app.include_router(feedback_router, prefix="/api/v1/quality", tags=["quality"])

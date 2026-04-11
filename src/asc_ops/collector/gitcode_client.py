@@ -136,40 +136,59 @@ class GitCodeCollector:
             }
 
             logger.info(f"Fetching PRs from GitCode: {repo}")
-            response = self._session.get(url, params=params, timeout=30)
-            response.raise_for_status()
 
-            data = response.json()
-            if not isinstance(data, list):
-                logger.warning(f"Unexpected response format from {repo}: {type(data)}")
-                return []
+            all_prs = []
+            page = 1
+            total_fetched = 0
+            hit_date_filter = False  # 标记是否遇到日期过滤
 
-            prs = []
-            for pr_data in data:
-                # 解析 PR 数据
-                pr = self._parse_pr(pr_data, repo)
+            while True:
+                params["page"] = page
+                response = self._session.get(url, params=params, timeout=30)
+                response.raise_for_status()
 
-                # 过滤已合并的 MR
-                # GitCode 使用 state == "merged" 表示已合并
-                # 或者 merged_at 有值
-                state = pr_data.get("state", "")
-                merged_at = pr_data.get("merged_at")
-                is_merged = (state == "merged") or bool(merged_at)
-
-                if not is_merged:
-                    continue
-
-                # 过滤日期
-                if since_date and pr.merged_at and pr.merged_at < since_date:
+                data = response.json()
+                if not isinstance(data, list) or len(data) == 0:
                     break
 
-                prs.append(pr)
+                for pr_data in data:
+                    # 解析 PR 数据
+                    pr = self._parse_pr(pr_data, repo)
 
-                if max_count and len(prs) >= max_count:
+                    # 过滤已合并的 MR
+                    mr_state = pr_data.get("state", "")
+                    merged_at = pr_data.get("merged_at")
+                    is_merged = (mr_state == "merged") or bool(merged_at)
+
+                    if not is_merged:
+                        continue
+
+                    # 过滤日期 (按 merged_at)
+                    if since_date and pr.merged_at:
+                        if pr.merged_at < since_date:
+                            hit_date_filter = True
+                            break
+
+                    all_prs.append(pr)
+                    total_fetched += 1
+
+                    if max_count and total_fetched >= max_count:
+                        break
+
+                if hit_date_filter:
                     break
 
-            logger.info(f"Fetched {len(prs)} PRs from {repo}")
-            return prs
+                if max_count and total_fetched >= max_count:
+                    break
+
+                # 如果返回的数据少于一页，说明已经是最后一页
+                if len(data) < 100:
+                    break
+
+                page += 1
+
+            logger.info(f"Fetched {len(all_prs)} PRs from {repo}")
+            return all_prs
 
         except requests.exceptions.Timeout:
             logger.error(f"Timeout fetching PRs from {repo}")
