@@ -10,11 +10,39 @@
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from .classifier import PRClassifier, PRType
 
+if TYPE_CHECKING:
+    from ..llm import UnifiedLLMClient
+
 logger = logging.getLogger(__name__)
+
+
+# LLM 抽取 Prompt 模板
+OPT_EXTRACTION_PROMPT = """Extract optimization knowledge from this PR:
+
+Title: {pr_title}
+Body: {pr_body}
+
+Extract the following information in JSON format:
+{{
+    "optimization_type": ["type1", "type2", ...],  // memory, pipeline, vectorization, computation, io, cache, parallel
+    "optimization_description": "What optimization was done? (1-2 sentences)",
+    "improvement_ratio": 0.3,  // 30% improvement as a decimal (null if not specified)
+    "before_metrics": {{"metric_name": "value"}},  // metrics before optimization (null if not specified)
+    "after_metrics": {{"metric_name": "value"}},  // metrics after optimization (null if not specified)
+    "related_apis": ["API1", "API2", ...]  // AscendC APIs involved
+}}
+
+Rules:
+- If a field cannot be determined, use null
+- optimization_type should be from the allowed types: memory, pipeline, vectorization, computation, io, cache, parallel
+- improvement_ratio should be a decimal (0.3 = 30%), not a percentage or multiplier
+- related_apis should be AscendC API names like Matmul, VecReduce, etc.
+- Only extract information that is explicitly stated in the PR
+"""
 
 
 @dataclass
@@ -64,6 +92,8 @@ class OptimizationExtractor:
     - 优化类型 (optimization_type)
     - 优化描述 (optimization_description)
     - 量化指标 (improvement_ratio, before/after metrics)
+
+    支持 LLM 增强模式 (use_llm=True) 来提升抽取质量
     """
 
     # 优化类型关键词
@@ -87,10 +117,16 @@ class OptimizationExtractor:
     # 性能指标关键词
     METRICS_KEYWORDS = ["ms", "fps", "throughput", "latency", "bandwidth", "memory", "time"]
 
-    def __init__(self):
-        """初始化优化抽取器"""
+    def __init__(self, llm_client: Optional["UnifiedLLMClient"] = None):
+        """
+        初始化优化抽取器
+
+        Args:
+            llm_client: 可选的 LLM 客户端，用于 LLM 增强抽取
+        """
         self.classifier = PRClassifier()
-        logger.info("OptimizationExtractor initialized")
+        self._llm_client = llm_client
+        logger.info(f"OptimizationExtractor initialized (llm_client={'provided' if llm_client else 'None'})")
 
     def extract(
         self,
@@ -98,15 +134,17 @@ class OptimizationExtractor:
         pr_body: str,
         source_repo: str,
         source_pr: str,
+        use_llm: bool = False,
     ) -> OptimizationExtractionResult:
         """
-        从 PR 抽取优化知识
+        从 PR 抽取优化知识 (同步版本)
 
         Args:
             pr_title: PR 标题
             pr_body: PR 描述
             source_repo: 来源仓库
             source_pr: PR 编号
+            use_llm: 是否使用 LLM 增强 (仅当 llm_client 已提供时有效)
 
         Returns:
             OptimizationExtractionResult: 抽取结果
@@ -160,6 +198,128 @@ class OptimizationExtractor:
             after_metrics=after_metrics,
             related_apis=related_apis,
             extraction_success=success,
+        )
+
+    async def extract_async(
+        self,
+        pr_title: str,
+        pr_body: str,
+        source_repo: str,
+        source_pr: str,
+        use_llm: bool = False,
+    ) -> OptimizationExtractionResult:
+        """
+        从 PR 抽取优化知识 (异步版本，支持 LLM 增强)
+
+        Args:
+            pr_title: PR 标题
+            pr_body: PR 描述
+            source_repo: 来源仓库
+            source_pr: PR 编号
+            use_llm: 是否使用 LLM 增强
+
+        Returns:
+            OptimizationExtractionResult: 抽取结果
+        """
+        # 先用规则抽取
+        result = self.extract(pr_title, pr_body, source_repo, source_pr)
+
+        # LLM 增强
+        if use_llm and self._llm_client:
+            llm_result = await self._llm_extract(pr_title, pr_body)
+            if llm_result:
+                result = self._merge_results(result, llm_result)
+
+        return result
+
+    async def _llm_extract(
+        self,
+        pr_title: str,
+        pr_body: str,
+    ) -> Optional[OptimizationExtractionResult]:
+        """
+        使用 LLM 抽取优化知识
+
+        Args:
+            pr_title: PR 标题
+            pr_body: PR 描述
+
+        Returns:
+            OptimizationExtractionResult 或 None (如果 LLM 抽取失败)
+        """
+        if not self._llm_client:
+            return None
+
+        try:
+            from ..llm import Message, MessageRole
+
+            # 构建 prompt
+            prompt = OPT_EXTRACTION_PROMPT.format(
+                pr_title=pr_title,
+                pr_body=pr_body,
+            )
+
+            messages = [
+                Message(role=MessageRole.USER, content=prompt)
+            ]
+
+            response = await self._llm_client.chat(
+                messages=messages,
+                max_tokens=1024,
+                temperature=0.3,
+            )
+
+            # 解析 JSON 响应
+            import json
+            try:
+                data = json.loads(response.content)
+            except json.JSONDecodeError:
+                logger.warning(f"Failed to parse LLM response as JSON: {response.content[:200]}")
+                return None
+
+            # 转换为 OptimizationExtractionResult
+            return OptimizationExtractionResult(
+                opt_id="",  # 稍后填充
+                operator_id=self._extract_operator(pr_title),
+                source_repo="",
+                source_pr="",
+                opt_title=pr_title,
+                optimization_type=data.get("optimization_type", []),
+                optimization_description=data.get("optimization_description"),
+                improvement_ratio=data.get("improvement_ratio"),
+                before_metrics=data.get("before_metrics"),
+                after_metrics=data.get("after_metrics"),
+                related_apis=data.get("related_apis", []),
+                extraction_success=True,
+            )
+
+        except Exception as e:
+            logger.error(f"LLM extraction failed: {e}")
+            return None
+
+    def _merge_results(
+        self,
+        rule_result: OptimizationExtractionResult,
+        llm_result: OptimizationExtractionResult,
+    ) -> OptimizationExtractionResult:
+        """
+        合并规则抽取和 LLM 抽取结果
+
+        LLM 结果优先，规则结果作为 fallback
+        """
+        return OptimizationExtractionResult(
+            opt_id=rule_result.opt_id,
+            operator_id=llm_result.operator_id or rule_result.operator_id,
+            source_repo=rule_result.source_repo,
+            source_pr=rule_result.source_pr,
+            opt_title=rule_result.opt_title,
+            optimization_type=llm_result.optimization_type or rule_result.optimization_type,
+            optimization_description=llm_result.optimization_description or rule_result.optimization_description,
+            improvement_ratio=llm_result.improvement_ratio or rule_result.improvement_ratio,
+            before_metrics=llm_result.before_metrics or rule_result.before_metrics,
+            after_metrics=llm_result.after_metrics or rule_result.after_metrics,
+            related_apis=llm_result.related_apis or rule_result.related_apis,
+            extraction_success=rule_result.extraction_success or llm_result.extraction_success,
         )
 
     def _generate_opt_id(self, source_repo: str, source_pr: str) -> str:

@@ -48,10 +48,29 @@ class LLMConfig(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    anthropic_api_key: Optional[str] = None
-    openai_api_key: Optional[str] = None
-    # 默认使用 Claude
+    # Provider 选择
     default_provider: str = "anthropic"
+
+    # Anthropic 配置
+    anthropic_api_key: Optional[str] = None
+    anthropic_api_base: str = "https://api.anthropic.com"
+    anthropic_model: str = "claude-3-5-sonnet-20241022"
+
+    # OpenAI 配置
+    openai_api_key: Optional[str] = None
+    openai_api_base: str = "https://api.openai.com/v1"
+    openai_model: str = "gpt-4o"
+
+    # Zhipu 配置
+    zhipu_api_key: Optional[str] = None
+    zhipu_api_base: str = "https://open.bigmodel.cn/api/paas/v4"
+    zhipu_model: str = "glm-4"
+
+    # MiniMax 配置
+    minimax_api_key: Optional[str] = None
+    minimax_api_base: str = "https://api.minimax.chat/v1"
+    minimax_group_id: Optional[str] = None
+    minimax_model: str = "MiniMax-Text-01"
 
 
 class EmbeddingConfig(BaseSettings):
