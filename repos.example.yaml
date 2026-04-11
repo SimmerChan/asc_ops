@@ -1,0 +1,18 @@
+# AscendC Operator Knowledge Base - 仓库配置示例
+#
+# 支持两种格式:
+# 1. 简单格式: 直接列出仓库名 (使用默认平台)
+# 2. 详细格式: 指定每个仓库的平台类型
+#
+# 平台类型: github, gitcode
+
+# 昇腾官方算子仓库 (示例)
+repos:
+  # GitHub 仓库
+  - ascend-community/HierarchicalKV-ascend
+
+  # GitCode 仓库 (显式指定平台)
+  - name: ascend-community/ops-nn
+    platform: gitcode
+  - name: ascend-community/ops-math
+    platform: gitcode

@@ -31,6 +31,7 @@ class GitHubPR:
     author: str
     labels: List[str]
     html_url: str
+    source: str = "github"  # 标记数据来源
 
     @property
     def is_merged(self) -> bool:
