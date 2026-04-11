@@ -245,3 +245,87 @@ class TestPredefinedMappings:
             assert "npu_api" in info
             assert "equivalence" in info
             assert isinstance(info["equivalence"], MappingEquivalenceLevel)
+
+
+class TestMapperEngineLLM:
+    """MapperEngine LLM 增强测试"""
+
+    def test_init_with_llm_client(self):
+        """使用 LLM 客户端初始化"""
+        from unittest.mock import MagicMock
+        mock_client = MagicMock()
+
+        engine = MapperEngine(use_llm_enhancement=True, llm_client=mock_client)
+
+        assert engine._use_llm_enhancement is True
+        assert engine._llm_client is mock_client
+
+    def test_init_without_llm_client(self):
+        """不使用 LLM 客户端初始化"""
+        engine = MapperEngine(use_llm_enhancement=True)
+
+        assert engine._use_llm_enhancement is True
+        assert engine._llm_client is None
+
+    @pytest.mark.asyncio
+    async def test_find_mapping_async_with_predefined(self):
+        """find_mapping_async 对预定义映射直接返回"""
+        from unittest.mock import AsyncMock, MagicMock
+
+        engine = MapperEngine(use_llm_enhancement=True, llm_client=MagicMock())
+
+        # 预定义映射，直接返回
+        result = await engine.find_mapping_async("__syncthreads", "cuda")
+
+        assert result is not None
+        assert result.npu_api == "SyncAll"
+        assert result.source == "predefined"
+
+    @pytest.mark.asyncio
+    async def test_find_mapping_async_with_llm_generation(self):
+        """find_mapping_async 对未知 API 使用 LLM 生成"""
+        from unittest.mock import AsyncMock, MagicMock
+
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.content = '''{
+            "npu_api": "CustomOp",
+            "equivalence_level": "similar",
+            "adaptation_notes": "May require parameter adjustments",
+            "confidence": 0.7
+        }'''
+        mock_client.chat.return_value = mock_response
+
+        engine = MapperEngine(use_llm_enhancement=True, llm_client=mock_client)
+
+        # 未知 API，应该调用 LLM
+        result = await engine.find_mapping_async("unknown_gpu_api", "cuda")
+
+        assert result is not None
+        assert result.npu_api == "CustomOp"
+        assert result.equivalence_level == MappingEquivalenceLevel.SIMILAR
+        assert result.confidence == 0.7
+        assert result.source == "llm_generated"
+
+    @pytest.mark.asyncio
+    async def test_find_mapping_async_no_llm_client(self):
+        """find_mapping_async 无 LLM 客户端时返回 None"""
+        engine = MapperEngine(use_llm_enhancement=True, llm_client=None)
+
+        result = await engine.find_mapping_async("unknown_gpu_api", "cuda")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_find_mapping_async_llm_failure(self):
+        """find_mapping_async LLM 调用失败时返回 None"""
+        from unittest.mock import AsyncMock, MagicMock
+
+        mock_client = AsyncMock()
+        mock_client.chat.side_effect = Exception("LLM error")
+
+        engine = MapperEngine(use_llm_enhancement=True, llm_client=mock_client)
+
+        result = await engine.find_mapping_async("unknown_gpu_api", "cuda")
+
+        assert result is None

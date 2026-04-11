@@ -9,7 +9,7 @@ GPU API → NPU API 映射查询
 
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, TYPE_CHECKING
 
 from ..gpu_collector.models import (
     CrossPlatformMapping,
@@ -25,7 +25,39 @@ from .predefined_mappings import (
     CUBLAS_MAPPINGS,
 )
 
+if TYPE_CHECKING:
+    from ..llm import UnifiedLLMClient
+
 logger = logging.getLogger(__name__)
+
+
+# LLM 映射生成 Prompt 模板
+MAPPING_GENERATION_PROMPT = """You are an expert in GPU (CUDA/CUTLASS/CUBLAS) to NPU (AscendC) API migration.
+
+Given a GPU API, generate the most likely NPU (AscendC) equivalent mapping.
+
+GPU API: {gpu_api}
+GPU Platform: {platform}
+
+Consider:
+1. API naming patterns (AscendC follows similar conventions)
+2. Functionality equivalence
+3. Common migration patterns
+
+Respond in JSON format:
+{{
+    "npu_api": "corresponding AscendC API name or closest equivalent",
+    "equivalence_level": "exact|similar|conceptual",
+    "adaptation_notes": "Key differences or migration notes (1-2 sentences)",
+    "confidence": 0.0-1.0
+}}
+
+Rules:
+- npu_api should be a plausible AscendC API name (e.g., Matmul, VecReduce, Tensor)
+- equivalence_level: exact (direct replacement), similar (with changes), conceptual (same idea, different API)
+- confidence reflects how certain you are about this mapping
+- If no plausible mapping exists, use "N/A" for npu_api and "unknown" for equivalence_level
+"""
 
 
 @dataclass
@@ -68,15 +100,23 @@ class MapperEngine:
     提供 GPU API 到 NPU API 的映射查询
     """
 
-    def __init__(self, use_llm_enhancement: bool = False):
+    def __init__(
+        self,
+        use_llm_enhancement: bool = False,
+        llm_client: Optional["UnifiedLLMClient"] = None,
+    ):
         """
         初始化映射引擎
 
         Args:
             use_llm_enhancement: 是否使用 LLM 增强未匹配 API 的映射
+            llm_client: LLM 客户端 (用于生成映射建议)
         """
         self._use_llm_enhancement = use_llm_enhancement
+        self._llm_client = llm_client
         self._cache: Dict[str, MappingResult] = {}
+
+        logger.info(f"MapperEngine initialized (llm_enhancement={use_llm_enhancement})")
 
     def find_mapping(
         self,
@@ -85,7 +125,49 @@ class MapperEngine:
         include_notes: bool = True,
     ) -> Optional[MappingResult]:
         """
-        查找 GPU API 的 NPU 映射
+        查找 GPU API 的 NPU 映射 (同步版本，预定义映射)
+
+        Args:
+            gpu_api: GPU API 名称
+            platform: GPU 平台 (cuda/cutlass/cublas/cudnn)
+            include_notes: 是否包含适配注意事项
+
+        Returns:
+            MappingResult 或 None
+        """
+        # 标准化平台
+        gpu_platform = self._normalize_platform(platform)
+
+        # 检查缓存
+        cache_key = f"{gpu_api}:{gpu_platform.value}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        # 查找预定义映射
+        mapping_info = get_predefined_mapping(gpu_api, gpu_platform)
+
+        if mapping_info:
+            result = MappingResult(
+                gpu_api=gpu_api,
+                npu_api=mapping_info["npu_api"],
+                equivalence_level=mapping_info["equivalence"],
+                adaptation_notes=mapping_info.get("notes", "") if include_notes else "",
+                confidence=1.0 if mapping_info["equivalence"] == MappingEquivalenceLevel.EXACT else 0.8,
+                source="predefined",
+            )
+            self._cache[cache_key] = result
+            return result
+
+        return None
+
+    async def find_mapping_async(
+        self,
+        gpu_api: str,
+        platform: str = "cuda",
+        include_notes: bool = True,
+    ) -> Optional[MappingResult]:
+        """
+        查找 GPU API 的 NPU 映射 (异步版本，支持 LLM 增强)
 
         Args:
             gpu_api: GPU API 名称
@@ -120,7 +202,7 @@ class MapperEngine:
 
         # 如果启用 LLM 增强，生成建议
         if self._use_llm_enhancement:
-            return self._generate_llm_mapping(gpu_api, gpu_platform)
+            return await self._generate_llm_mapping(gpu_api, gpu_platform)
 
         return None
 
@@ -278,7 +360,7 @@ class MapperEngine:
 
         return 0.0
 
-    def _generate_llm_mapping(
+    async def _generate_llm_mapping(
         self,
         gpu_api: str,
         platform: GPUPlatform,
@@ -286,11 +368,67 @@ class MapperEngine:
         """
         使用 LLM 生成映射建议
 
-        (占位实现，后续可接入 LLM)
+        Args:
+            gpu_api: GPU API 名称
+            platform: GPU 平台
+
+        Returns:
+            MappingResult 或 None (如果 LLM 不可用或生成失败)
         """
-        # TODO: 接入 LLM 生成映射建议
-        logger.info(f"LLM mapping generation not implemented for {gpu_api}")
-        return None
+        if not self._llm_client:
+            logger.warning(f"LLM client not provided, cannot generate mapping for {gpu_api}")
+            return None
+
+        try:
+            from ..llm import Message, MessageRole
+
+            prompt = MAPPING_GENERATION_PROMPT.format(
+                gpu_api=gpu_api,
+                platform=platform.value.upper(),
+            )
+
+            messages = [
+                Message(role=MessageRole.USER, content=prompt)
+            ]
+
+            response = await self._llm_client.chat(
+                messages=messages,
+                max_tokens=256,
+                temperature=0.3,
+            )
+
+            # 解析 JSON 响应
+            import json
+            try:
+                data = json.loads(response.content)
+            except json.JSONDecodeError:
+                logger.warning(f"Failed to parse LLM response as JSON: {response.content[:200]}")
+                return None
+
+            # 解析等价级别
+            equiv_str = data.get("equivalence_level", "conceptual").lower()
+            if equiv_str == "exact":
+                equiv_level = MappingEquivalenceLevel.EXACT
+            elif equiv_str == "similar":
+                equiv_level = MappingEquivalenceLevel.SIMILAR
+            else:
+                equiv_level = MappingEquivalenceLevel.CONCEPTUAL
+
+            result = MappingResult(
+                gpu_api=gpu_api,
+                npu_api=data.get("npu_api", "unknown"),
+                equivalence_level=equiv_level,
+                adaptation_notes=data.get("adaptation_notes", ""),
+                confidence=float(data.get("confidence", 0.5)),
+                source="llm_generated",
+            )
+
+            logger.info(f"LLM generated mapping for {gpu_api}: {result.npu_api} (confidence={result.confidence})")
+            return result
+
+        except Exception as e:
+            logger.error(f"LLM mapping generation failed for {gpu_api}: {e}")
+            return None
 
     def clear_cache(self):
         """清空缓存"""
