@@ -176,20 +176,42 @@ class OperatorSync:
         self._classifier = None
         self._bug_extractor = None
         self._opt_extractor = None
+        self._storage = None
 
         # 初始化 collectors
         self._github_collector = GitHubCollector()
         self._gitcode_collector = GitCodeCollector()
 
     def _init_extractors(self):
-        """初始化抽取器"""
+        """初始化抽取器和存储"""
         try:
             from ..extractor import PRClassifier, BugExtractor, OptimizationExtractor
+            from ..extractor.knowledge_storage import KnowledgeStorage
+            from ..storage.chroma_client import ChromaDBClient
+            from ..storage.redis_client import RedisClient
+            import os
+
             self._classifier = PRClassifier()
             self._bug_extractor = BugExtractor()
             self._opt_extractor = OptimizationExtractor()
+
+            # 初始化存储
+            chroma_client = ChromaDBClient(
+                persist_directory=os.environ.get("CHROMA_DB_PATH", "./data/chroma_db"),
+            )
+            redis_client = RedisClient(
+                host=os.environ.get("REDIS_HOST", "localhost"),
+                port=int(os.environ.get("REDIS_PORT", "6379")),
+                db=int(os.environ.get("REDIS_DB", "0")),
+                password=os.environ.get("REDIS_PASSWORD"),
+            )
+            self._storage = KnowledgeStorage(
+                chroma_client=chroma_client,
+                redis_client=redis_client,
+            )
+            logger.info("知识存储初始化完成")
         except ImportError as e:
-            logger.warning(f"抽取器不可用: {e}")
+            logger.warning(f"抽取器或存储不可用: {e}")
 
     async def sync_all(self) -> OperatorSyncResult:
         """
@@ -239,7 +261,7 @@ class OperatorSync:
         # 分类 PR
         for pr in prs:
             try:
-                pr_result = await self._process_pr(pr)
+                pr_result = self._process_pr(pr)
                 if pr_result["is_bug"]:
                     result.bug_prs += 1
                     result.bug_knowledge_count += pr_result["bug_count"]
@@ -309,7 +331,7 @@ class OperatorSync:
 
         return prs
 
-    async def _process_pr(self, pr: OperatorPR) -> Dict[str, Any]:
+    def _process_pr(self, pr: OperatorPR) -> Dict[str, Any]:
         """
         处理单个 PR
 
@@ -365,10 +387,10 @@ class OperatorSync:
                     source_repo=pr.repo,
                     source_pr=str(pr.pr_number),
                 )
-                if bug_result:
+                if bug_result and bug_result.extraction_success:
                     result["bug_count"] = 1
                     # 存储知识
-                    # await self._store_bug_knowledge(bug_result)
+                    self._store_bug_knowledge(bug_result)
             except Exception as e:
                 logger.warning(f"  PR #{pr.pr_number} Bug 抽取失败: {e}")
 
@@ -380,14 +402,64 @@ class OperatorSync:
                     source_repo=pr.repo,
                     source_pr=str(pr.pr_number),
                 )
-                if opt_result:
+                if opt_result and opt_result.extraction_success:
                     result["opt_count"] = 1
                     # 存储知识
-                    # await self._store_optimization_knowledge(opt_result)
+                    self._store_optimization_knowledge(opt_result)
             except Exception as e:
                 logger.warning(f"  PR #{pr.pr_number} Optimization 抽取失败: {e}")
 
         return result
+
+    def _store_bug_knowledge(self, bug_result) -> bool:
+        """
+        存储 Bug 知识到 ChromaDB
+
+        Args:
+            bug_result: BugExtractionResult
+
+        Returns:
+            是否存储成功
+        """
+        if not self._storage:
+            logger.warning("存储不可用，跳过存储")
+            return False
+
+        try:
+            success = self._storage.store_bugfix(bug_result, store_failed=False)
+            if success:
+                logger.info(f"  [存储] Bug #{bug_result.bug_id}: {bug_result.bug_title[:50]}...")
+            else:
+                logger.warning(f"  [存储] Bug #{bug_result.bug_id} 存储失败")
+            return success
+        except Exception as e:
+            logger.error(f"  [存储] Bug 存储异常: {e}")
+            return False
+
+    def _store_optimization_knowledge(self, opt_result) -> bool:
+        """
+        存储 Optimization 知识到 ChromaDB
+
+        Args:
+            opt_result: OptimizationExtractionResult
+
+        Returns:
+            是否存储成功
+        """
+        if not self._storage:
+            logger.warning("存储不可用，跳过存储")
+            return False
+
+        try:
+            success = self._storage.store_optimization(opt_result, store_failed=False)
+            if success:
+                logger.info(f"  [存储] Optimization #{opt_result.opt_id}: {opt_result.opt_title[:50]}...")
+            else:
+                logger.warning(f"  [存储] Optimization #{opt_result.opt_id} 存储失败")
+            return success
+        except Exception as e:
+            logger.error(f"  [存储] Optimization 存储异常: {e}")
+            return False
 
 
 def add_operator_sync_parser(subparsers) -> argparse.ArgumentParser:
