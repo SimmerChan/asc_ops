@@ -17,6 +17,7 @@ from .bug_extractor import BugExtractor, BugExtractionResult
 from .priority_scorer import BugPriorityItem, PriorityScorer
 from .knowledge_storage import KnowledgeStorage
 from .git_diff_provider import GitDiffProvider
+from .gitcode_diff_provider import GitCodeDiffProvider
 from ..llm import UnifiedLLMClient
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ class BatchExtractionStats:
     root_cause_filled: int = 0
     fix_pattern_filled: int = 0
     low_confidence: int = 0  # 置信度 < 0.5 标记待审核
+    with_diff: int = 0  # 有 diff 的记录数
     total_duration_seconds: float = 0.0
 
     def to_dict(self) -> dict:
@@ -45,6 +47,7 @@ class BatchExtractionStats:
             "root_cause_filled": self.root_cause_filled,
             "fix_pattern_filled": self.fix_pattern_filled,
             "low_confidence": self.low_confidence,
+            "with_diff": self.with_diff,
             "duration_seconds": round(self.total_duration_seconds, 2),
         }
 
@@ -98,7 +101,8 @@ class BatchBugExtractor:
         self._batch_size = batch_size
         self._concurrency = concurrency
         self._bug_extractor: Optional[BugExtractor] = None
-        self._diff_provider = GitDiffProvider()
+        self._git_diff_provider = GitDiffProvider()
+        self._gitcode_diff_provider = GitCodeDiffProvider()
 
     async def _get_llm_client(self) -> UnifiedLLMClient:
         """获取或创建LLM客户端"""
@@ -179,8 +183,13 @@ class BatchBugExtractor:
             """处理单个bug"""
             async with semaphore:
                 try:
-                    # 获取代码 diff 作为补充上下文
-                    pr_diff = self._diff_provider.get_diff(bug.bug_id)
+                    # 优先使用 GitCodeDiffProvider（从 API 获取 PR diff）
+                    # 如果失败则使用本地 GitDiffProvider
+                    pr_diff = self._gitcode_diff_provider.get_diff(bug.bug_id)
+
+                    if pr_diff is None:
+                        # 降级到本地 Git 仓库
+                        pr_diff = self._git_diff_provider.get_diff(bug.bug_id)
 
                     # 调用LLM抽取
                     # 注意：这里使用 pr_body="" 因为冷启动记录只有标题
@@ -197,6 +206,7 @@ class BatchBugExtractor:
                         "bug": bug,
                         "result": result,
                         "success": result.extraction_success,
+                        "has_diff": pr_diff is not None,
                     }
                 except Exception as e:
                     logger.error(f"Error extracting {bug.bug_id}: {e}")
@@ -224,6 +234,10 @@ class BatchBugExtractor:
             bug_result: BugExtractionResult = result["result"]
 
             if bug_result.extraction_success:
+                # 跟踪是否有 diff
+                if result.get("has_diff"):
+                    stats.with_diff += 1
+
                 # 更新存储
                 success = self._storage.store_bugfix(bug_result, store_failed=False)
 
@@ -259,7 +273,7 @@ class BatchBugExtractor:
                     })
 
         stats.total_duration_seconds = time.time() - start_time
-        logger.info(f"Batch extraction complete: {stats.success} success, {stats.failed} failed, {stats.partial} partial")
+        logger.info(f"Batch extraction complete: {stats.success} success, {stats.failed} failed, {stats.partial} partial, {stats.with_diff} with diff")
 
         return BatchExtractionResult(
             stats=stats,
