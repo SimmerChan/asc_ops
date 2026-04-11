@@ -124,3 +124,76 @@ class TestBugExtractionResult:
         assert data["bug_id"] == "BUG-123"
         assert data["root_cause"] == "Buffer not released"
         assert data["extraction_success"] is True
+
+
+class TestBugExtractorWithDiff:
+    """BugExtractor diff 支持测试"""
+
+    def test_extract_async_signature_accepts_pr_diff(self):
+        """extract_async 接受 pr_diff 参数"""
+        extractor = BugExtractor()
+
+        # 使用 LLM 但没有 client，结果同规则抽取
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(
+            extractor.extract_async(
+                pr_title="fix: memory leak",
+                pr_body="Root cause: buffer not released",
+                source_repo="ops-nn",
+                source_pr="123",
+                use_llm=False,
+                pr_diff="some diff",
+            )
+        )
+
+        # 能接受 pr_diff 参数不报错
+        assert result is not None
+
+    def test_llm_extract_with_diff_parameter(self):
+        """_llm_extract 接受 pr_diff 参数"""
+        from unittest.mock import AsyncMock, Mock, patch
+
+        extractor = BugExtractor()
+        extractor._llm_client = Mock()
+
+        # Mock LLM response
+        mock_response = Mock()
+        mock_response.content = '{"root_cause": "test", "fix_pattern": "test fix", "trigger_conditions": [], "related_apis": []}'
+
+        async def mock_chat(*args, **kwargs):
+            return mock_response
+
+        extractor._llm_client.chat = mock_chat
+
+        # 调用 _llm_extract（内部方法）
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(
+            extractor._llm_extract("fix: test", "body", pr_diff="+added line")
+        )
+
+        assert result is not None
+        assert result.root_cause == "test"
+
+    def test_llm_extract_without_diff_parameter(self):
+        """_llm_extract 不传 pr_diff 时使用基础 prompt"""
+        from unittest.mock import Mock
+
+        extractor = BugExtractor()
+        extractor._llm_client = Mock()
+
+        mock_response = Mock()
+        mock_response.content = '{"root_cause": "test", "fix_pattern": "test fix", "trigger_conditions": [], "related_apis": []}'
+
+        async def mock_chat(*args, **kwargs):
+            return mock_response
+
+        extractor._llm_client.chat = mock_chat
+
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(
+            extractor._llm_extract("fix: test", "body", pr_diff=None)
+        )
+
+        assert result is not None
+        assert result.root_cause == "test"
+

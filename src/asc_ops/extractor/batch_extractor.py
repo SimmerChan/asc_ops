@@ -16,6 +16,7 @@ from datetime import datetime
 from .bug_extractor import BugExtractor, BugExtractionResult
 from .priority_scorer import BugPriorityItem, PriorityScorer
 from .knowledge_storage import KnowledgeStorage
+from .git_diff_provider import GitDiffProvider
 from ..llm import UnifiedLLMClient
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,7 @@ class BatchBugExtractor:
         self._batch_size = batch_size
         self._concurrency = concurrency
         self._bug_extractor: Optional[BugExtractor] = None
+        self._diff_provider = GitDiffProvider()
 
     async def _get_llm_client(self) -> UnifiedLLMClient:
         """获取或创建LLM客户端"""
@@ -177,6 +179,9 @@ class BatchBugExtractor:
             """处理单个bug"""
             async with semaphore:
                 try:
+                    # 获取代码 diff 作为补充上下文
+                    pr_diff = self._diff_provider.get_diff(bug.bug_id)
+
                     # 调用LLM抽取
                     # 注意：这里使用 pr_body="" 因为冷启动记录只有标题
                     result = await bug_extractor.extract_async(
@@ -185,6 +190,7 @@ class BatchBugExtractor:
                         source_repo=bug.source_repo,
                         source_pr=bug.source_pr,
                         use_llm=True,
+                        pr_diff=pr_diff,
                     )
 
                     return {

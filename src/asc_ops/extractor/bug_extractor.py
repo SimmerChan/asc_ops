@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# LLM 抽取 Prompt 模板
+# LLM 抽取 Prompt 模板（无 diff）
 BUG_EXTRACTION_PROMPT = """Extract bug knowledge from this PR:
 
 Title: {pr_title}
@@ -40,6 +40,33 @@ Rules:
 - trigger_conditions should be a list of specific scenarios (max 5)
 - related_apis should be AscendC API names like Matmul, VecReduce, etc.
 - Only extract information that is explicitly stated in the PR
+"""
+
+# LLM 抽取 Prompt 模板（带 diff 上下文）
+BUG_EXTRACTION_PROMPT_WITH_DIFF = """Extract bug knowledge from this PR:
+
+Title: {pr_title}
+Body: {pr_body}
+
+Code Diff:
+```diff
+{pr_diff}
+```
+
+Analyze this code change and extract the following information in JSON format:
+{{
+    "root_cause": "What caused the bug? (describe in 1-2 sentences, inferred from the code change if not explicitly stated)",
+    "fix_pattern": "How was it fixed? (describe the fix approach based on the code diff)",
+    "trigger_conditions": ["condition 1 that triggers the bug", "condition 2..."],
+    "related_apis": ["API 1", "API 2..."]
+}}
+
+Rules:
+- If a field cannot be determined, use null
+- trigger_conditions should be a list of specific scenarios (max 5)
+- related_apis should be AscendC API names like Matmul, VecReduce, etc.
+- Use the code diff to infer root_cause and fix_pattern when PR body lacks details
+- fix_pattern should describe WHAT was changed (e.g., "added platform check for DAV_3510 to Cast tensor to FP32") not just "fixed bug"
 """
 
 
@@ -202,6 +229,7 @@ class BugExtractor:
         source_repo: str,
         source_pr: str,
         use_llm: bool = False,
+        pr_diff: Optional[str] = None,
     ) -> BugExtractionResult:
         """
         从 PR 抽取 Bug 知识 (异步版本，支持 LLM 增强)
@@ -212,6 +240,7 @@ class BugExtractor:
             source_repo: 来源仓库
             source_pr: PR 编号
             use_llm: 是否使用 LLM 增强
+            pr_diff: 代码 diff（可选，用于补充上下文）
 
         Returns:
             BugExtractionResult: 抽取结果
@@ -221,7 +250,7 @@ class BugExtractor:
 
         # LLM 增强
         if use_llm and self._llm_client:
-            llm_result = await self._llm_extract(pr_title, pr_body)
+            llm_result = await self._llm_extract(pr_title, pr_body, pr_diff=pr_diff)
             if llm_result:
                 result = self._merge_results(result, llm_result)
 
@@ -231,6 +260,7 @@ class BugExtractor:
         self,
         pr_title: str,
         pr_body: str,
+        pr_diff: Optional[str] = None,
     ) -> Optional[BugExtractionResult]:
         """
         使用 LLM 抽取 Bug 知识
@@ -238,6 +268,7 @@ class BugExtractor:
         Args:
             pr_title: PR 标题
             pr_body: PR 描述
+            pr_diff: 代码 diff（可选）
 
         Returns:
             BugExtractionResult 或 None (如果 LLM 抽取失败)
@@ -248,11 +279,18 @@ class BugExtractor:
         try:
             from ..llm import Message, MessageRole
 
-            # 构建 prompt
-            prompt = BUG_EXTRACTION_PROMPT.format(
-                pr_title=pr_title,
-                pr_body=pr_body,
-            )
+            # 构建 prompt（根据是否有 diff 选择模板）
+            if pr_diff:
+                prompt = BUG_EXTRACTION_PROMPT_WITH_DIFF.format(
+                    pr_title=pr_title,
+                    pr_body=pr_body,
+                    pr_diff=pr_diff,
+                )
+            else:
+                prompt = BUG_EXTRACTION_PROMPT.format(
+                    pr_title=pr_title,
+                    pr_body=pr_body,
+                )
 
             messages = [
                 Message(role=MessageRole.USER, content=prompt)
