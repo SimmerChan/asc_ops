@@ -43,7 +43,9 @@ Rules:
 """
 
 # LLM 抽取 Prompt 模板（带 diff 上下文）
-BUG_EXTRACTION_PROMPT_WITH_DIFF = """Extract bug knowledge from this PR:
+BUG_EXTRACTION_PROMPT_WITH_DIFF = """You are a code change analyst. Your task is to analyze code diffs and extract bug fix patterns.
+
+## Input
 
 Title: {pr_title}
 Body: {pr_body}
@@ -53,20 +55,55 @@ Code Diff:
 {pr_diff}
 ```
 
-Analyze this code change and extract the following information in JSON format:
+## Your Task
+
+Analyze the code diff above and extract structured information about HOW this bug was fixed.
+
+## Output Format
+
+Return a JSON object with these fields:
+
 {{
-    "root_cause": "What caused the bug? (describe in 1-2 sentences, inferred from the code change if not explicitly stated)",
-    "fix_pattern": "How was it fixed? (describe the fix approach based on the code diff)",
-    "trigger_conditions": ["condition 1 that triggers the bug", "condition 2..."],
-    "related_apis": ["API 1", "API 2..."]
+    "fix_pattern": "Describe the SPECIFIC code pattern that was changed. Be concrete about what code was added/removed/modified.",
+    "root_cause": "What was the underlying bug or issue? (infer from the diff if not stated in body)",
+    "trigger_conditions": ["What input/condition triggers this bug?"],
+    "related_apis": ["What APIs are involved in this fix?"],
+    "has_code_fix": true or false - does this diff contain actual code changes that fix a bug?
 }}
 
-Rules:
-- If a field cannot be determined, use null
-- trigger_conditions should be a list of specific scenarios (max 5)
-- related_apis should be AscendC API names like Matmul, VecReduce, etc.
-- Use the code diff to infer root_cause and fix_pattern when PR body lacks details
-- fix_pattern should describe WHAT was changed (e.g., "added platform check for DAV_3510 to Cast tensor to FP32") not just "fixed bug"
+## Fix Pattern Examples (Good vs Bad)
+
+BAD (too vague):
+- "Fixed a bug"
+- "Memory leak fixed"
+- "Added null check"
+- "Bug fix"
+
+GOOD (specific and concrete):
+- "Removed upper bound constraint k <= 1024, changed to dynamic k < logits.size(1)"
+- "Added if (ptr != nullptr) guard before pointer dereference at line 45"
+- "Added MTE3ToVSync(), SToMTE2Sync() synchronization calls for multi-level pipeline handling"
+- "Added bounds check: if (idx >= 0 && idx < size) before array access"
+- "Changed blocking wait to async event-based synchronization"
+- "Relaxed parameter constraint from [1, 1024] to [1, logits.size(1)]"
+
+## Key Insight: "Relaxing Constraints" IS a Bug Fix
+
+If the PR title contains words like "放开" (relax), "修复" (fix), "bug", "限制" (limit/constraint), and the diff removes or loosens constraints, this is a BUG FIX (not feature_addition)!
+
+Examples of bug fixes disguised as "relaxations":
+- "放开ksize限制" → "Removed upper bound constraint k <= 1024"
+- "修复边界问题" → "Fixed boundary condition check"
+- "支持更大输入" → "Added support for larger input sizes by removing fixed limit"
+
+## Rules
+
+1. If has_code_fix is false (only docs/refactoring/no relevant change), set fix_pattern to null
+2. If has_code_fix is true, ALWAYS extract a fix_pattern - even if brief
+3. For fix_pattern, focus on the SPECIFIC CODE PATTERN that was changed
+4. Use imperative voice for fix_pattern: "Added X", "Removed Y", "Changed Z to W"
+5. related_apis should be function/class names like "Matmul", "VecReduce", "ApplyTopKTopPWithSorted"
+6. When in doubt, extract fix_pattern - it is the most important field
 """
 
 
