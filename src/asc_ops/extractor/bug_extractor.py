@@ -339,11 +339,17 @@ class BugExtractor:
                 temperature=0.3,
             )
 
-            # 解析 JSON 响应
+            # 解析 JSON 响应（处理 markdown 代码块包裹的 JSON）
             import json
+            import re
             try:
-                data = json.loads(response.content)
-            except json.JSONDecodeError:
+                content = response.content
+                # 尝试从 markdown 代码块中提取 JSON
+                json_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", content, re.DOTALL)
+                if json_match:
+                    content = json_match.group(1)
+                data = json.loads(content)
+            except (json.JSONDecodeError, AttributeError) as e:
                 logger.warning(f"Failed to parse LLM response as JSON: {response.content[:200]}")
                 return None
 

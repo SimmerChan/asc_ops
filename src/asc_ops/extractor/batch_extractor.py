@@ -113,7 +113,8 @@ class BatchBugExtractor:
             return self._llm_client
 
         # 尝试加载 .env 文件
-        env_path = Path(__file__).parent.parent.parent / ".env"
+        # __file__ = src/asc_ops/extractor/batch_extractor.py，需要上4级才能到项目根目录
+        env_path = Path(__file__).parent.parent.parent.parent / ".env"
         if env_path.exists():
             from dotenv import load_dotenv
             load_dotenv(env_path)
