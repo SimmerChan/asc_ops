@@ -16,6 +16,7 @@ from ..storage.redis_client import RedisClient
 from ..storage.collections import CollectionType, ensure_collection_exists
 from .embedder import APIEmbedder, EmbeddingResult
 from ..models import AscendCAPIDefinition
+from ..config import RedisConfig
 
 logger = logging.getLogger(__name__)
 
@@ -39,23 +40,51 @@ class APIStorage:
         chroma_client: Optional[ChromaDBClient] = None,
         redis_client: Optional[RedisClient] = None,
         embedder: Optional[APIEmbedder] = None,
+        chroma_db_path: Optional[str] = None,
+        redis_config: Optional[RedisConfig] = None,
     ):
         """
         初始化 API 存储
 
         Args:
-            chroma_client: ChromaDB 客户端
-            redis_client: Redis 客户端
+            chroma_client: ChromaDB 客户端 (优先级最高)
+            redis_client: Redis 客户端 (优先级最高)
             embedder: 向量化器
+            chroma_db_path: ChromaDB 持久化路径 (用于创建客户端)
+            redis_config: Redis 配置 (用于创建客户端)
         """
-        self._chroma = chroma_client or ChromaDBClient()
-        self._redis = redis_client or RedisClient(mock=True)
+        # ChromaDB 客户端初始化
+        if chroma_client is not None:
+            self._chroma = chroma_client
+        elif chroma_db_path:
+            self._chroma = ChromaDBClient(persist_directory=chroma_db_path)
+        else:
+            # 默认使用临时客户端 (保持向后兼容)
+            self._chroma = ChromaDBClient()
+
+        # Redis 客户端初始化
+        if redis_client is not None:
+            self._redis = redis_client
+        elif redis_config:
+            self._redis = RedisClient(
+                host=redis_config.host,
+                port=redis_config.port,
+                db=redis_config.db,
+                password=redis_config.password,
+                max_connections=redis_config.max_connections,
+                mock=False,
+            )
+        else:
+            # 默认使用 mock 客户端 (保持向后兼容)
+            self._redis = RedisClient(mock=True)
+
         self._embedder = embedder
 
         # 确保 collection 存在
         ensure_collection_exists(self._chroma, CollectionType.ASCEND_APIS)
 
-        logger.info("API Storage initialized")
+        chroma_persist = chroma_db_path or "ephemeral"
+        logger.info(f"API Storage initialized (chroma={chroma_persist}, redis_mock={self._redis.is_mock})")
 
     def store_api(
         self,

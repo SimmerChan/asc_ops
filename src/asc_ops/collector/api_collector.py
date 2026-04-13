@@ -65,20 +65,31 @@ class APICollector:
         storage: Optional[APIStorage] = None,
         checkpoint: Optional[CheckpointManager] = None,
         rate_limit: float = DEFAULT_RATE_LIMIT,
+        chroma_db_path: Optional[str] = None,
+        redis_config: Optional[Any] = None,
     ):
         """
         初始化采集器
 
         Args:
             docs_client: 文档 HTTP 客户端
-            storage: API 存储
+            storage: API 存储 (优先级最高)
             checkpoint: 断点管理器
             rate_limit: 请求间隔 (秒)
+            chroma_db_path: ChromaDB 持久化路径
+            redis_config: Redis 配置
         """
+        from ..config import get_config
+
+        config = get_config()
+
         self._docs_client = docs_client or OfficialDocsClient()
-        self._storage = storage or APIStorage()
+        self._storage = storage or APIStorage(
+            chroma_db_path=chroma_db_path or str(config.chroma.db_path),
+            redis_config=redis_config or config.redis,
+        )
         self._checkpoint = checkpoint or CheckpointManager(
-            storage_path="/tmp/ascendc_api_checkpoints"
+            storage_path=str(config.data_dir / "checkpoints")
         )
         self._rate_limit = rate_limit
 

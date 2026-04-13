@@ -19,6 +19,7 @@ class ChromaDBConfig(BaseSettings):
         env_prefix="CHROMA_",
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     db_path: str = "./data/chroma_db"
@@ -31,6 +32,7 @@ class RedisConfig(BaseSettings):
         env_prefix="REDIS_",
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     host: str = "localhost"
@@ -46,6 +48,7 @@ class LLMConfig(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     # Provider 选择
@@ -80,6 +83,7 @@ class EmbeddingConfig(BaseSettings):
         env_prefix="EMBEDDING_",
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     # 默认模型
@@ -99,6 +103,7 @@ class ServerConfig(BaseSettings):
         env_prefix="SERVER_",
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     host: str = "0.0.0.0"
