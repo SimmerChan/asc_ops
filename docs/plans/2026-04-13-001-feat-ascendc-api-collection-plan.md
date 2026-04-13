@@ -1,7 +1,7 @@
 ---
 title: AscendC API 采集与入库
 type: feat
-status: active
+status: completed
 date: 2026-04-13
 origin: docs/design/2026-04-09-ascendc-api-knowledge-base-design.md
 ---
