@@ -28,7 +28,7 @@ class OfficialDocsClient:
 
     def __init__(
         self,
-        base_url: str = "https://昇腾官方文档URL",
+        base_url: str = "https://www.hiascend.com",
         timeout: float = 30.0,
         max_retries: int = 3,
         initial_interval: float = 0.5,
@@ -87,7 +87,7 @@ class OfficialDocsClient:
         获取页面内容
 
         Args:
-            path: 页面路径 (相对于 base_url)
+            path: 页面路径 (相对于 base_url) 或完整 URL
             retry_count: 当前重试次数
 
         Returns:
@@ -100,7 +100,11 @@ class OfficialDocsClient:
         if self._client is None:
             await self.connect()
 
-        url = f"{self.base_url}/{path.lstrip('/')}"
+        # 如果是完整 URL，直接使用；否则拼接 base_url
+        if path.startswith("http://") or path.startswith("https://"):
+            url = path
+        else:
+            url = f"{self.base_url}/{path.lstrip('/')}"
 
         try:
             # 限速控制
