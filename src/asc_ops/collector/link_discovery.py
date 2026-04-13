@@ -53,8 +53,8 @@ class RateLimitError(LinkDiscoveryError):
 
 
 # 昇腾官方 CANN API 文档列表页
-# 注意：实际 URL 需要根据昇腾文档实际地址调整
-DEFAULT_API_LIST_URL = "https://昇腾官方文档URL/ascendc/cn/cann/doc密级API.html"
+# CANN 9.0.0-beta.2 版本
+DEFAULT_API_LIST_URL = "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta2/API/ascendcopapi/atlasascendc_api_07_0003.html"
 
 # 分类映射 (从 URL 或页面内容推断)
 CATEGORY_PATTERNS = {
@@ -175,10 +175,10 @@ def _parse_api_list_page(html: str, base_url: str) -> List[APILink]:
     soup = BeautifulSoup(html, "html.parser")
     links: List[APILink] = []
 
-    # 查找 API 链接的模式 (需要根据实际页面结构调整)
-    # 常见模式: <a href="/xxx/api/xxx.html">API名称</a>
+    # 查找 API 链接的模式
+    # 只选择包含 atlasascendc_api_07_XXXX.html 的链接
+    # 排除 .xml 链接（错误的）
     api_link_selectors = [
-        "a[href*='/api/']",
         "a[href*='/ascendc']",
         ".api-item a",
         ".api-link",
@@ -196,6 +196,10 @@ def _parse_api_list_page(html: str, base_url: str) -> List[APILink]:
 
             # 跳过锚点链接和 JavaScript 链接
             if href.startswith("#") or href.startswith("javascript:"):
+                continue
+
+            # 只保留 .html 链接，排除 .xml 链接
+            if ".html" not in href or ".xml" in href:
                 continue
 
             # 构建完整 URL

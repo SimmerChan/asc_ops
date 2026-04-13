@@ -47,16 +47,17 @@ class ParsingDegradedError(APIParserError):
     pass
 
 
-# API 详情页 CSS 选择器 (需要根据实际页面结构调整)
+# API 详情页 CSS 选择器 (CANN 9.0.0-beta.2 页面结构)
 SELECTORS = {
-    "api_name": ["h1.api-title", "h1", ".api-name", "[class*='title']"],
-    "category": ["[class*='breadcrumb']", "[class*='category']", ".nav-path"],
-    "signature": ["pre.signature", "code.signature", ".api-signature"],
-    "parameters_table": ["table.params", "table.parameters", "[class*='param']"],
-    "return_value": [".return-value", ".returns", "[class*='return']"],
-    "examples": [".example", "pre.example", "[class*='example']"],
-    "cautions": ["[class*='caution']", "[class*='warning']", ".attention"],
-    "description": ["[class*='description']", ".desc", ".content"],
+    "api_name": ["h1", ".article-title", "[class*='title']"],
+    "breadcrumb": ["[class*='breadcrumb']", ".nav-path", "section[class*='article-bread']"],
+    "signature": ["pre", "code", "[class*='signature']"],
+    "hardware_support": ["table"],
+    "parameters_table": ["table"],
+    "return_value": ["h2", "h3", "p"],
+    "examples": ["pre", "[class*='example']"],
+    "cautions": ["[class*='caution']", "[class*='warning']"],
+    "description": ["section[class*='content']", ".article-content", "p"],
 }
 
 
@@ -325,7 +326,7 @@ def _extract_cautions(soup: BeautifulSoup) -> List[str]:
 def _extract_breadcrumbs(soup: BeautifulSoup) -> List[str]:
     """提取面包屑导航"""
     breadcrumbs = []
-    for selector in SELECTORS["category"]:
+    for selector in SELECTORS.get("breadcrumb", SELECTORS.get("category", [])):
         elem = soup.select_one(selector)
         if elem:
             # 分割面包屑文本
