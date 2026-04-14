@@ -283,25 +283,26 @@ class QwenEmbedder:
     """
     Qwen3-Embedding 向量化器
 
-    使用 transformers 直接加载 Qwen3-Embedding-4B 模型
+    使用 transformers 直接加载 Qwen3-Embedding 模型
     支持 MRL (Matryoshka Representation Learning) 输出可变维度
+    支持 Apple Silicon MPS / CUDA / CPU
     """
 
     def __init__(
         self,
-        model_name: str = "Qwen/Qwen3-Embedding-4B",
-        embedding_dim: int = 2560,
+        model_name: str = "Qwen/Qwen3-Embedding-0.6B",
+        embedding_dim: int = 1024,
         batch_size: int = 8,
-        device: str = "cpu",
+        device: str = "mps",
     ):
         """
         初始化 Qwen 向量化器
 
         Args:
             model_name: 模型名称
-            embedding_dim: 输出向量维度 (32-2560, MRL支持)
+            embedding_dim: 输出向量维度 (MRL支持, 0.6B支持32-1024)
             batch_size: 批处理大小
-            device: 设备 "cpu" 或 "cuda"
+            device: 设备 "mps"(Apple Silicon) / "cuda" / "cpu"
         """
         self.model_name = model_name
         self.embedding_dim = embedding_dim
@@ -319,9 +320,13 @@ class QwenEmbedder:
             trust_remote_code=True,
         )
         self._model.eval()
-        # 移动到设备
+
+        # 设备选择: mps (Apple Silicon) > cuda > cpu
         import torch
-        if device == "cuda" and torch.cuda.is_available():
+        if device == "mps" and torch.backends.mps.is_available():
+            self._model = self._model.to("mps")
+            self._device = "mps"
+        elif device == "cuda" and torch.cuda.is_available():
             self._model = self._model.cuda()
             self._device = "cuda"
         else:
