@@ -87,6 +87,7 @@ class APICollector:
         self._storage = storage or APIStorage(
             chroma_db_path=chroma_db_path or str(config.chroma.db_path),
             redis_config=redis_config or config.redis,
+            embedder_config=config.embedding,
         )
         self._checkpoint = checkpoint or CheckpointManager(
             storage_path=str(config.data_dir / "checkpoints")

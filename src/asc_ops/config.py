@@ -86,7 +86,9 @@ class EmbeddingConfig(BaseSettings):
         extra="ignore",
     )
 
-    # 默认模型
+    # Embedder 类型: "sentence_transformers" | "qwen" | "mock"
+    embedder_type: str = "sentence_transformers"
+    # 模型名称
     model_name: str = "all-MiniLM-L6-v2"
     # 模型路径 (如果使用本地模型)
     model_path: Optional[str] = None
@@ -94,6 +96,8 @@ class EmbeddingConfig(BaseSettings):
     embedding_dim: Optional[int] = None
     # 批处理大小
     batch_size: int = 32
+    # 设备: "cpu" | "cuda"
+    device: str = "cpu"
 
 
 class ServerConfig(BaseSettings):

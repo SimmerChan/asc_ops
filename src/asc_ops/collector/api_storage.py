@@ -16,7 +16,7 @@ from ..storage.redis_client import RedisClient
 from ..storage.collections import CollectionType, ensure_collection_exists
 from .embedder import APIEmbedder, EmbeddingResult
 from ..models import AscendCAPIDefinition
-from ..config import RedisConfig
+from ..config import RedisConfig, EmbeddingConfig
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,7 @@ class APIStorage:
         embedder: Optional[APIEmbedder] = None,
         chroma_db_path: Optional[str] = None,
         redis_config: Optional[RedisConfig] = None,
+        embedder_config: Optional["EmbeddingConfig"] = None,
     ):
         """
         初始化 API 存储
@@ -49,9 +50,10 @@ class APIStorage:
         Args:
             chroma_client: ChromaDB 客户端 (优先级最高)
             redis_client: Redis 客户端 (优先级最高)
-            embedder: 向量化器
+            embedder: 向量化器 (优先级最高)
             chroma_db_path: ChromaDB 持久化路径 (用于创建客户端)
             redis_config: Redis 配置 (用于创建客户端)
+            embedder_config: Embedding 配置 (用于创建 embedder)
         """
         # ChromaDB 客户端初始化
         if chroma_client is not None:
@@ -78,13 +80,55 @@ class APIStorage:
             # 默认使用 mock 客户端 (保持向后兼容)
             self._redis = RedisClient(mock=True)
 
-        self._embedder = embedder
+        # Embedder 初始化
+        if embedder is not None:
+            self._embedder = embedder
+        elif embedder_config is not None:
+            self._embedder = self._create_embedder(embedder_config)
+        else:
+            # 尝试从全局配置创建
+            from ..config import get_config
+            config = get_config()
+            self._embedder = self._create_embedder(config.embedding)
 
         # 确保 collection 存在
         ensure_collection_exists(self._chroma, CollectionType.ASCEND_APIS)
 
         chroma_persist = chroma_db_path or "ephemeral"
-        logger.info(f"API Storage initialized (chroma={chroma_persist}, redis_mock={self._redis.is_mock})")
+        logger.info(f"API Storage initialized (chroma={chroma_persist}, redis_mock={self._redis.is_mock}, embedder={type(self._embedder).__name__})")
+
+    def _create_embedder(self, embedder_config: "EmbeddingConfig") -> Optional[APIEmbedder]:
+        """根据配置创建 Embedder"""
+        from .embedder import QwenEmbedder, MockEmbedder, APIEmbedder as STEmbedder
+
+        embedder_type = embedder_config.embedder_type.lower()
+
+        if embedder_type == "qwen":
+            logger.info(f"Creating QwenEmbedder: model={embedder_config.model_name}, dim={embedder_config.embedding_dim}")
+            return QwenEmbedder(
+                model_name=embedder_config.model_name,
+                embedding_dim=embedder_config.embedding_dim or 2560,
+                batch_size=embedder_config.batch_size,
+                device=embedder_config.device,
+            )
+        elif embedder_type == "sentence_transformers":
+            logger.info(f"Creating SentenceTransformerEmbedder: model={embedder_config.model_name}")
+            try:
+                return STEmbedder(
+                    model_name=embedder_config.model_name,
+                    model_path=embedder_config.model_path,
+                    embedding_dim=embedder_config.embedding_dim,
+                    batch_size=embedder_config.batch_size,
+                )
+            except ImportError:
+                logger.warning("sentence_transformers not available, using MockEmbedder")
+                return MockEmbedder(embedding_dim=embedder_config.embedding_dim or 384)
+        elif embedder_type == "mock":
+            logger.warning("Using MockEmbedder - not suitable for production")
+            return MockEmbedder(embedding_dim=embedder_config.embedding_dim or 384)
+        else:
+            logger.warning(f"Unknown embedder type '{embedder_type}', using MockEmbedder")
+            return MockEmbedder(embedding_dim=embedder_config.embedding_dim or 384)
 
     def store_api(
         self,
