@@ -104,10 +104,11 @@ class APIStorage:
         embedder_type = embedder_config.embedder_type.lower()
 
         if embedder_type == "qwen":
-            logger.info(f"Creating QwenEmbedder: model={embedder_config.model_name}, dim={embedder_config.embedding_dim}")
+            logger.info(f"Creating QwenEmbedder: model={embedder_config.model_name}, path={embedder_config.model_path}, dim={embedder_config.embedding_dim}")
             return QwenEmbedder(
                 model_name=embedder_config.model_name,
-                embedding_dim=embedder_config.embedding_dim or 2560,
+                model_path=embedder_config.model_path,
+                embedding_dim=embedder_config.embedding_dim or 1024,
                 batch_size=embedder_config.batch_size,
                 device=embedder_config.device,
             )
