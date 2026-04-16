@@ -221,10 +221,17 @@ def _parse_degraded(
 def _extract_signature(soup: BeautifulSoup) -> Optional[str]:
     """提取函数签名"""
     for selector in SELECTORS["signature"]:
-        elem = soup.select_one(selector)
-        if elem:
+        elems = soup.select(selector)
+        for elem in elems:
             text = elem.get_text(strip=True)
-            if text and ("(" in text or "{" in text):
+            # 跳过只有数字（行号）或太短的元素
+            if not text or len(text) < 10:
+                continue
+            # 检查是否是行号（大部分是数字）
+            if text.replace('\n', '').replace(' ', '').isdigit():
+                continue
+            # 检查是否包含函数签名特征
+            if "(" in text or "{" in text:
                 return text
     return None
 
@@ -232,10 +239,10 @@ def _extract_signature(soup: BeautifulSoup) -> Optional[str]:
 def _extract_parameters(soup: BeautifulSoup) -> Optional[List[APIParameter]]:
     """提取参数列表"""
     for selector in SELECTORS["parameters_table"]:
-        table = soup.select_one(selector)
-        if table:
+        tables = soup.select(selector)
+        for table in tables:
             params = _parse_parameters_table(table)
-            if params is not None:
+            if params is not None and len(params) > 0:
                 return params
     return None
 
@@ -243,24 +250,65 @@ def _extract_parameters(soup: BeautifulSoup) -> Optional[List[APIParameter]]:
 def _parse_parameters_table(table) -> Optional[List[APIParameter]]:
     """解析参数表格"""
     params = []
-    rows = table.select("tr")
-    if not rows:
+
+    # 查找表头行（可能在 thead 或 table 的第一行）
+    header_row = table.select_one("thead tr")
+    if not header_row:
+        # 如果没有 thead，使用第一行作为表头
+        rows = table.select("tr")
+        if rows:
+            header_row = rows[0]
+
+    # 获取表头列名
+    header_cols = []
+    if header_row:
+        for th in header_row.select("th"):
+            header_cols.append(th.get_text(strip=True).lower())
+
+    # 查找数据行（在 tbody 或 thead 之后）
+    data_rows = []
+    tbody = table.select_one("tbody")
+    if tbody:
+        data_rows = tbody.select("tr")
+    else:
+        # 没有 tbody，查找 thead 之后的 tr
+        all_rows = table.select("tr")
+        if len(all_rows) > 1:
+            data_rows = all_rows[1:]  # 跳过表头
+
+    if not data_rows:
         return None
 
-    for row in rows[1:]:  # 跳过表头
-        cols = row.select("td")
-        if len(cols) >= 2:
-            param_name = cols[0].get_text(strip=True)
-            param_type = cols[1].get_text(strip=True) if len(cols) > 1 else ""
-            param_desc = cols[2].get_text(strip=True) if len(cols) > 2 else ""
+    # 确定参数名和描述的列索引
+    name_col_idx = 0
+    desc_col_idx = 1
 
-            if param_name:
-                params.append(APIParameter(
-                    name=param_name,
-                    type=param_type,
-                    description=param_desc,
-                    required=True,
-                ))
+    for i, col_name in enumerate(header_cols):
+        if "参数" in col_name or "名称" in col_name or "name" in col_name:
+            name_col_idx = i
+        if "描述" in col_name or "说明" in col_name or "desc" in col_name:
+            desc_col_idx = i
+
+    for row in data_rows:
+        cols = row.select("td")
+        if len(cols) >= max(name_col_idx, desc_col_idx) + 1:
+            param_name = cols[name_col_idx].get_text(strip=True)
+            param_desc = cols[desc_col_idx].get_text(strip=True)
+
+            # 跳过表头行或无效行
+            if not param_name or param_name in ["参数名", "参数说明"]:
+                continue
+
+            # 跳过纯数字的行号行
+            if param_name.replace("\n", "").isdigit():
+                continue
+
+            params.append(APIParameter(
+                name=param_name,
+                type="",  # 参数表格通常只有名称和描述
+                description=param_desc,
+                required=True,
+            ))
 
     return params if params else None
 
