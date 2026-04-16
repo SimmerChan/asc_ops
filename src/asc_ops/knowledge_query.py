@@ -20,6 +20,8 @@ from .storage.collections import CollectionType
 from .ranker import Ranker, FusionConfig, ScoredResult, QueryType, ConfidenceRanker, RankingConfig
 from .extractor.knowledge_storage import KnowledgeStorage
 from .quality import CitationTracker, FeedbackAPI
+from .collector.embedder import QwenEmbedder
+from .config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -31,17 +33,25 @@ class KnowledgeQueryService:
         self,
         chroma_client: Optional[ChromaDBClient] = None,
         redis_client: Optional[RedisClient] = None,
+        chroma_db_path: Optional[str] = None,
         base_url: str = "http://localhost:8000",
     ):
         """
         初始化知识查询服务
 
         Args:
-            chroma_client: ChromaDB 客户端
+            chroma_client: ChromaDB 客户端 (优先级最高)
             redis_client: Redis 客户端
+            chroma_db_path: ChromaDB 持久化目录 (用于创建持久化客户端)
             base_url: API 基础 URL (用于 API 详情获取)
         """
-        self._chroma = chroma_client or ChromaDBClient()
+        if chroma_client is not None:
+            self._chroma = chroma_client
+        else:
+            # 优先使用传入的路径，否则从配置读取
+            from .config import get_config
+            db_path = chroma_db_path or get_config().chroma.db_path
+            self._chroma = ChromaDBClient(persist_directory=db_path)
         self._redis = redis_client or RedisClient(mock=True)
         self._storage = KnowledgeStorage(
             chroma_client=self._chroma,
@@ -52,7 +62,15 @@ class KnowledgeQueryService:
             config=RankingConfig(),
             redis_client=self._redis
         )
-        # Phase 4: 引用追踪和反馈
+        # 初始化 QwenEmbedder 用于 API 语义查询
+        embedder_config = get_config().embedding
+        self._embedder = QwenEmbedder(
+            model_name=embedder_config.model_name,
+            model_path=embedder_config.model_path,
+            embedding_dim=embedder_config.embedding_dim or 1024,
+            batch_size=embedder_config.batch_size or 8,
+            device=embedder_config.device or "mps",
+        )
         self._citation_tracker = CitationTracker(self._redis)
         self._feedback_api = FeedbackAPI(self._redis, self._citation_tracker)
         self.base_url = base_url
@@ -405,6 +423,9 @@ class KnowledgeQueryService:
             # 获取 ascend_apis collection
             collection = self._chroma.get_collection("ascend_apis")
 
+            # 使用 QwenEmbedder 生成查询向量
+            query_embedding = self._embedder.encode_api(query)
+
             # 构建 where 条件
             where = None
             if category or subcategory:
@@ -414,9 +435,9 @@ class KnowledgeQueryService:
                 if subcategory:
                     where["subcategory"] = subcategory
 
-            # 查询向量
+            # 使用 embedding 向量查询
             results = collection.query(
-                query_texts=[query],
+                query_embeddings=[query_embedding],
                 n_results=limit,
                 where=where,
             )
@@ -554,7 +575,7 @@ class KnowledgeQueryService:
 
         return AscendCAPIDefinition(
             api_id=api_id,
-            canonical_name=metadata.get("canonical_name", api_id),
+            canonical_name=metadata.get("name", api_id),  # metadata存的是"name"
             full_signature=metadata.get("full_signature", ""),
             category=metadata.get("category", "unknown"),
             subcategory=metadata.get("subcategory", ""),
