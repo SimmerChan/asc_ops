@@ -140,6 +140,61 @@ class TestPRClassifier:
         # 多个高权重关键词应该有高置信度
         assert result.confidence >= 0.5
 
+    def test_chinese_bugfix_substring(self):
+        """中文 BugFix 子串匹配"""
+        result = self.classifier.classify(
+            title="精度修复",
+            body="修复精度问题",
+        )
+
+        assert result.pr_type == PRType.BUGFIX
+        assert result.confidence >= 0.3
+        assert "修" in result.matched_keywords or "复" in result.matched_keywords or "精度修复" in result.matched_keywords
+
+    def test_chinese_optimization_substring(self):
+        """中文 Optimization 子串匹配"""
+        result = self.classifier.classify(
+            title="SLIG性能优化",
+            body="优化性能",
+        )
+
+        assert result.pr_type == PRType.OPTIMIZATION
+        assert result.confidence >= 0.3
+
+    def test_negative_keyword_filtering(self):
+        """负向关键词过滤 - 新增压制修复"""
+        result = self.classifier.classify(
+            title="新增GroupedMatmul支持，修复精度问题",
+            body="新增支持并修复bug",
+        )
+
+        # 负向关键词应该降低 bugfix 置信度
+        # 但由于 bugfix 信号也强，可能仍然是 bugfix
+        assert result.pr_type in [PRType.BUGFIX, PRType.FEATURE]
+        # 如果是 bugfix，置信度应该被降低
+        if result.pr_type == PRType.BUGFIX:
+            assert result.confidence < 0.9  # 不会太高因为有负向词
+
+    def test_feature_with_negative_keywords(self):
+        """Feature 类负向关键词"""
+        result = self.classifier.classify(
+            title="新增功能",
+            body="实现新功能",
+        )
+
+        assert result.pr_type == PRType.FEATURE
+        assert "新增" in result.matched_keywords or "新" in result.matched_keywords
+
+    def test_chinese_single_char_keywords(self):
+        """中文单字关键词"""
+        result = self.classifier.classify(
+            title="修复",
+            body="",
+        )
+
+        assert result.pr_type == PRType.BUGFIX
+        assert "修" in result.matched_keywords or "复" in result.matched_keywords
+
 
 class TestClassificationResult:
     """ClassificationResult 测试"""

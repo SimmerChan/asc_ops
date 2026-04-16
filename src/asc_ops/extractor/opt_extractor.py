@@ -66,6 +66,11 @@ class OptimizationExtractionResult:
     extraction_success: bool = False
     error_message: Optional[str] = None
 
+    # 分类元数据
+    classification_pr_type: Optional[str] = None
+    classification_confidence: Optional[float] = None
+    classification_method: Optional[str] = None  # "rule" or "llm"
+
     def to_dict(self) -> dict:
         return {
             "opt_id": self.opt_id,
@@ -81,6 +86,11 @@ class OptimizationExtractionResult:
             "related_apis": self.related_apis,
             "extraction_success": self.extraction_success,
             "error_message": self.error_message,
+            "classification": {
+                "pr_type": self.classification_pr_type,
+                "confidence": self.classification_confidence,
+                "method": self.classification_method,
+            } if self.classification_pr_type else None,
         }
 
 
@@ -135,6 +145,7 @@ class OptimizationExtractor:
         source_repo: str,
         source_pr: str,
         use_llm: bool = False,
+        commit_message: str = "",
     ) -> OptimizationExtractionResult:
         """
         从 PR 抽取优化知识 (同步版本)
@@ -145,12 +156,13 @@ class OptimizationExtractor:
             source_repo: 来源仓库
             source_pr: PR 编号
             use_llm: 是否使用 LLM 增强 (仅当 llm_client 已提供时有效)
+            commit_message: Commit 消息（可选）
 
         Returns:
             OptimizationExtractionResult: 抽取结果
         """
         # 先分类确认是 optimization
-        classification = self.classifier.classify(pr_title, pr_body)
+        classification = self.classifier.classify(pr_title, pr_body, commit_message)
         if classification.pr_type != PRType.OPTIMIZATION:
             logger.warning(f"PR {source_pr} is not an optimization, skipped")
             return OptimizationExtractionResult(
@@ -198,6 +210,9 @@ class OptimizationExtractor:
             after_metrics=after_metrics,
             related_apis=related_apis,
             extraction_success=success,
+            classification_pr_type=classification.pr_type.value,
+            classification_confidence=classification.confidence,
+            classification_method="rule",
         )
 
     async def extract_async(
@@ -207,6 +222,7 @@ class OptimizationExtractor:
         source_repo: str,
         source_pr: str,
         use_llm: bool = False,
+        commit_message: str = "",
     ) -> OptimizationExtractionResult:
         """
         从 PR 抽取优化知识 (异步版本，支持 LLM 增强)
@@ -217,12 +233,34 @@ class OptimizationExtractor:
             source_repo: 来源仓库
             source_pr: PR 编号
             use_llm: 是否使用 LLM 增强
+            commit_message: Commit 消息（可选）
 
         Returns:
             OptimizationExtractionResult: 抽取结果
         """
         # 先用规则抽取
-        result = self.extract(pr_title, pr_body, source_repo, source_pr)
+        result = self.extract(pr_title, pr_body, source_repo, source_pr, commit_message=commit_message)
+
+        # LLM Fallback：当置信度 < 0.5 且 use_llm=True 时
+        if use_llm and self._llm_client and result.classification_confidence is not None:
+            if result.classification_confidence < 0.5:
+                logger.info(f"PR {source_pr} confidence {result.classification_confidence:.2f} < 0.5, using LLM fallback")
+                llm_classification = await self.classifier.classify_with_llm(
+                    title=pr_title,
+                    body=pr_body,
+                    diff_summary="",
+                    llm_client=self._llm_client,
+                )
+                # 更新分类元数据
+                result.classification_pr_type = llm_classification.pr_type.value
+                result.classification_confidence = llm_classification.confidence
+                result.classification_method = "llm"
+
+                # 如果 LLM 分类不是 optimization，跳过抽取
+                if llm_classification.pr_type != PRType.OPTIMIZATION:
+                    result.extraction_success = False
+                    result.error_message = f"LLM classified as {llm_classification.pr_type.value}, skipped"
+                    return result
 
         # LLM 增强
         if use_llm and self._llm_client:
@@ -320,6 +358,9 @@ class OptimizationExtractor:
             after_metrics=llm_result.after_metrics or rule_result.after_metrics,
             related_apis=llm_result.related_apis or rule_result.related_apis,
             extraction_success=rule_result.extraction_success or llm_result.extraction_success,
+            classification_pr_type=rule_result.classification_pr_type,
+            classification_confidence=rule_result.classification_confidence,
+            classification_method=rule_result.classification_method,
         )
 
     def _generate_opt_id(self, source_repo: str, source_pr: str) -> str:

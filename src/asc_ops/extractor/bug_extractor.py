@@ -125,6 +125,11 @@ class BugExtractionResult:
     extraction_success: bool = False
     error_message: Optional[str] = None
 
+    # 分类元数据
+    classification_pr_type: Optional[str] = None
+    classification_confidence: Optional[float] = None
+    classification_method: Optional[str] = None  # "rule" or "llm"
+
     def to_dict(self) -> dict:
         return {
             "bug_id": self.bug_id,
@@ -139,6 +144,11 @@ class BugExtractionResult:
             "related_apis": self.related_apis,
             "extraction_success": self.extraction_success,
             "error_message": self.error_message,
+            "classification": {
+                "pr_type": self.classification_pr_type,
+                "confidence": self.classification_confidence,
+                "method": self.classification_method,
+            } if self.classification_pr_type else None,
         }
 
 
@@ -197,6 +207,7 @@ class BugExtractor:
         source_repo: str,
         source_pr: str,
         use_llm: bool = False,
+        commit_message: str = "",
     ) -> BugExtractionResult:
         """
         从 PR 抽取 Bug 知识 (同步版本)
@@ -207,12 +218,13 @@ class BugExtractor:
             source_repo: 来源仓库
             source_pr: PR 编号
             use_llm: 是否使用 LLM 增强 (仅当 llm_client 已提供时有效)
+            commit_message: Commit 消息（可选）
 
         Returns:
             BugExtractionResult: 抽取结果
         """
         # 先分类确认是 bugfix
-        classification = self.classifier.classify(pr_title, pr_body)
+        classification = self.classifier.classify(pr_title, pr_body, commit_message)
         if classification.pr_type != PRType.BUGFIX:
             logger.warning(f"PR {source_pr} is not a bugfix, skipped")
             return BugExtractionResult(
@@ -257,6 +269,9 @@ class BugExtractor:
             trigger_conditions=trigger_conditions,
             related_apis=related_apis,
             extraction_success=success,
+            classification_pr_type=classification.pr_type.value,
+            classification_confidence=classification.confidence,
+            classification_method="rule",
         )
 
     async def extract_async(
@@ -267,6 +282,7 @@ class BugExtractor:
         source_pr: str,
         use_llm: bool = False,
         pr_diff: Optional[str] = None,
+        commit_message: str = "",
     ) -> BugExtractionResult:
         """
         从 PR 抽取 Bug 知识 (异步版本，支持 LLM 增强)
@@ -278,12 +294,34 @@ class BugExtractor:
             source_pr: PR 编号
             use_llm: 是否使用 LLM 增强
             pr_diff: 代码 diff（可选，用于补充上下文）
+            commit_message: Commit 消息（可选）
 
         Returns:
             BugExtractionResult: 抽取结果
         """
         # 先用规则抽取
-        result = self.extract(pr_title, pr_body, source_repo, source_pr)
+        result = self.extract(pr_title, pr_body, source_repo, source_pr, commit_message=commit_message)
+
+        # LLM Fallback：当置信度 < 0.5 且 use_llm=True 时
+        if use_llm and self._llm_client and result.classification_confidence is not None:
+            if result.classification_confidence < 0.5:
+                logger.info(f"PR {source_pr} confidence {result.classification_confidence:.2f} < 0.5, using LLM fallback")
+                llm_classification = await self.classifier.classify_with_llm(
+                    title=pr_title,
+                    body=pr_body,
+                    diff_summary=pr_diff[:500] if pr_diff else "",
+                    llm_client=self._llm_client,
+                )
+                # 更新分类元数据
+                result.classification_pr_type = llm_classification.pr_type.value
+                result.classification_confidence = llm_classification.confidence
+                result.classification_method = "llm"
+
+                # 如果 LLM 分类不是 bugfix，跳过抽取
+                if llm_classification.pr_type != PRType.BUGFIX:
+                    result.extraction_success = False
+                    result.error_message = f"LLM classified as {llm_classification.pr_type.value}, skipped"
+                    return result
 
         # LLM 增强
         if use_llm and self._llm_client:
@@ -392,6 +430,9 @@ class BugExtractor:
             trigger_conditions=llm_result.trigger_conditions or rule_result.trigger_conditions,
             related_apis=llm_result.related_apis or rule_result.related_apis,
             extraction_success=rule_result.extraction_success or llm_result.extraction_success,
+            classification_pr_type=rule_result.classification_pr_type,
+            classification_confidence=rule_result.classification_confidence,
+            classification_method=rule_result.classification_method,
         )
 
     def _generate_bug_id(self, source_repo: str, source_pr: str) -> str:
