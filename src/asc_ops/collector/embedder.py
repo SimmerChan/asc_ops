@@ -291,6 +291,7 @@ class QwenEmbedder:
     def __init__(
         self,
         model_name: str = "Qwen/Qwen3-Embedding-0.6B",
+        model_path: Optional[str] = None,
         embedding_dim: int = 1024,
         batch_size: int = 8,
         device: str = "mps",
@@ -300,6 +301,7 @@ class QwenEmbedder:
 
         Args:
             model_name: 模型名称
+            model_path: 本地模型路径 (可选)
             embedding_dim: 输出向量维度 (MRL支持, 0.6B支持32-1024)
             batch_size: 批处理大小
             device: 设备 "mps"(Apple Silicon) / "cuda" / "cpu"
@@ -308,28 +310,48 @@ class QwenEmbedder:
         self.embedding_dim = embedding_dim
         self.batch_size = batch_size
 
-        logger.info(f"Loading Qwen3-Embedding model: {model_name}, dim={embedding_dim}")
+        # 确定模型路径: 本地路径优先，否则使用 HuggingFace 模型名
+        import os
+        if model_path and os.path.isdir(model_path):
+            # 本地路径直接使用
+            model_to_load = model_path
+            logger.info(f"Loading Qwen3-Embedding from local path: {model_path}")
+        else:
+            # 使用 HuggingFace 模型名
+            model_to_load = model_name
+            logger.info(f"Loading Qwen3-Embedding model: {model_name}, dim={embedding_dim}")
+
         from transformers import AutoTokenizer, AutoModel
 
         self._tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
+            model_to_load,
             trust_remote_code=True,
         )
-        self._model = AutoModel.from_pretrained(
-            model_name,
-            trust_remote_code=True,
-        )
-        self._model.eval()
 
         # 设备选择: mps (Apple Silicon) > cuda > cpu
         import torch
         if device == "mps" and torch.backends.mps.is_available():
+            # MPS 需要 bfloat16 才能正常工作
+            self._model = AutoModel.from_pretrained(
+                model_to_load,
+                trust_remote_code=True,
+                dtype=torch.bfloat16,
+            )
             self._model = self._model.to("mps")
             self._device = "mps"
         elif device == "cuda" and torch.cuda.is_available():
+            self._model = AutoModel.from_pretrained(
+                model_to_load,
+                trust_remote_code=True,
+            )
             self._model = self._model.cuda()
             self._device = "cuda"
         else:
+            self._model = AutoModel.from_pretrained(
+                model_to_load,
+                trust_remote_code=True,
+            )
+            self._model.eval()
             self._device = "cpu"
 
         logger.info(f"QwenEmbedder initialized on {self._device}")
@@ -386,8 +408,8 @@ class QwenEmbedder:
             )
 
             # 移动到设备
-            if self._device == "cuda":
-                inputs = {k: v.cuda() for k, v in inputs.items()}
+            if self._device in ("cuda", "mps"):
+                inputs = {k: v.to(self._device) for k, v in inputs.items()}
 
             # 前向传播
             with torch.no_grad():
@@ -405,7 +427,7 @@ class QwenEmbedder:
                 embeddings = self._normalize(embeddings)
 
             # 转换为 list
-            all_embeddings.extend(embeddings.cpu().numpy().tolist())
+            all_embeddings.extend(embeddings.float().cpu().numpy().tolist())
 
         return all_embeddings
 
