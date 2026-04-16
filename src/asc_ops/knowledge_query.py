@@ -313,11 +313,17 @@ class KnowledgeQueryService:
         """根据算子名称查询优化知识"""
         try:
             # 从 Redis 获取该算子的所有 optimization IDs
-            opt_ids_key = f"operator:{operator_name}:opts"
-            opt_ids = self._redis.smembers(opt_ids_key)
+            # 存储层使用 operator:{name}:opts:{type} 模式，需要用 scan_iter 匹配
+            opt_ids = set()
+            for key in self._redis.scan_iter(f"operator:{operator_name}:opts:*"):
+                ids = self._redis.smembers(key)
+                opt_ids.update(ids)
 
             if not opt_ids:
-                opt_ids = self._redis.smembers(f"operator:{operator_name.lower()}:opts")
+                # 尝试小写版本
+                for key in self._redis.scan_iter(f"operator:{operator_name.lower()}:opts:*"):
+                    ids = self._redis.smembers(key)
+                    opt_ids.update(ids)
 
             if not opt_ids:
                 return []

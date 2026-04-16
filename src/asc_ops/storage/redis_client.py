@@ -9,7 +9,7 @@ Redis 客户端封装
 
 import redis
 from redis.connection import ConnectionPool
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Iterator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -355,6 +355,27 @@ class RedisClient:
                         result.append(member)
             return result
         return self._client.zrangebyscore(key, min, max, withscores=withscores)
+
+    def scan_iter(self, match: Optional[str] = None) -> Iterator[str]:
+        """
+        遍历所有匹配模式的键
+
+        Args:
+            match: 键名模式 (支持 * 和 ? 通配符)
+
+        Returns:
+            匹配键的迭代器
+        """
+        if self._mock:
+            if not match:
+                return iter(list(self._mock_data.keys()))
+            # 简单实现：支持 * 通配符
+            import fnmatch
+            pattern = match.replace("*", ".*").replace("?", ".")
+            result = [k for k in self._mock_data.keys() if fnmatch.fnmatch(k, match)]
+            return iter(result)
+        # Real Redis client
+        return self._client.scan_iter(match)
 
     # ==================== 连接管理 ====================
 

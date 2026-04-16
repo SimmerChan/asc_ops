@@ -440,6 +440,17 @@ class BugExtractor:
         repo_short = source_repo.split("/")[-1] if "/" in source_repo else source_repo
         return f"BUG-{repo_short}-{source_pr}"
 
+    # 已知算子名称列表（用于中文标题提取）
+    KNOWN_OPERATORS = [
+        "Matmul", "VecReduce", "VecReduceMax", "VecReduceMin",
+        "Transpose", "Broadcast", "Scatter", "Gather",
+        "Softmax", "LayerNorm", "Dropout",
+        "Conv2d", "Conv3d", "Pooling",
+        "BatchMatmul", "GroupedMatmul",
+        "Quant", "Dequant", "LocalTensor",
+        "ApplyTopKTopPWithSorted", "Real", "Imag",
+    ]
+
     def _extract_operator(self, text: str) -> str:
         """
         从文本提取算子名称
@@ -452,6 +463,8 @@ class BugExtractor:
         patterns = [
             r"\b([A-Z][a-z]+[A-Za-z]*)\b",  # 大写开头的驼峰词
             r"(Matmul|Vec|Tensor|Buffer|Kernel)",
+            # 中文标题中 "XX算子" 或 "XX实现" 模式
+            r"([A-Z][a-zA-Z]+)(?:算子|实现|修复|问题)",
         ]
 
         for pattern in patterns:
@@ -461,6 +474,12 @@ class BugExtractor:
                 for match in matches:
                     if len(match) > 3:  # 过滤太短的
                         return match
+
+        # 检查已知算子名称列表
+        text_upper = text.upper()
+        for op in self.KNOWN_OPERATORS:
+            if op.upper() in text_upper:
+                return op
 
         return "unknown"
 
