@@ -38,6 +38,17 @@ class CorrectionReport:
     suggested_fix: Optional[str]
     reported_at: datetime
 
+    def to_dict(self) -> dict:
+        return {
+            "entity_id": self.entity_id,
+            "entity_type": self.entity_type,
+            "correction_type": self.correction_type.value,
+            "user_id": self.user_id,
+            "description": self.description,
+            "suggested_fix": self.suggested_fix,
+            "reported_at": self.reported_at.isoformat(),
+        }
+
 
 @dataclass
 class CorrectionStats:
@@ -63,6 +74,8 @@ class FeedbackAPI:
     CORRECTION_COUNT_KEY = "ascendc:corrections:{entity_type}:{entity_id}:{correction_type}"
     CORRECTION_REPORTS_KEY = "ascendc:correction_reports:{entity_type}:{entity_id}"
     CORRECTION_THRESHOLD_KEY = "ascendc:correction_threshold:{entity_type}"
+    # 全局修正报告索引: sorted set，score=timestamp，value=json{entity_type,entity_id,correction_type,reported_at}
+    CORRECTION_INDEX_KEY = "ascendc:correction_reports:index"
 
     # 默认纠错阈值 (超过此值触发告警)
     DEFAULT_CORRECTION_THRESHOLD = 5
@@ -170,6 +183,18 @@ class FeedbackAPI:
         )
         report_json = self._serialize_report(report)
         self.redis.rpush(reports_key, report_json)
+
+        # 2.5 添加到全局索引
+        import json
+        index_entry = json.dumps({
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "correction_type": corr_type.value,
+            "reported_at": timestamp.isoformat(),
+        })
+        # 使用时间戳作为分数，便于范围查询
+        score = timestamp.timestamp()
+        self.redis.zadd(self.CORRECTION_INDEX_KEY, {index_entry: score})
 
         # 3. 同步更新 CitationTracker
         self.citation_tracker.record_correction(entity_id, entity_type, timestamp)
@@ -309,6 +334,98 @@ class FeedbackAPI:
                 reports.append(report)
 
         return list(reversed(reports))
+
+    def query_correction_reports(
+        self,
+        entity_type: Optional[str] = None,
+        correction_type: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> Dict[str, Any]:
+        """
+        分页查询全局纠错报告
+
+        Args:
+            entity_type: 实体类型过滤 (bug | optimization | api)
+            correction_type: 纠错类型过滤 (wrong | incomplete | outdated | misleading)
+            start_date: 开始时间 (可选)
+            end_date: 结束时间 (可选)
+            page: 页码 (从1开始)
+            page_size: 每页数量
+
+        Returns:
+            Dict containing reports, total_count, page, page_size, total_pages
+        """
+        import json
+
+        # 计算分数范围
+        min_score = start_date.timestamp() if start_date else 0
+        max_score = end_date.timestamp() if end_date else "+inf"
+
+        # 获取索引范围内的所有条目
+        entries = self.redis.zrangebyscore(
+            self.CORRECTION_INDEX_KEY,
+            min=min_score,
+            max=max_score,
+            withscores=True,
+        )
+
+        # 过滤并收集报告
+        filtered_reports = []
+        total_count = 0
+
+        for entry_json, score in entries:
+            try:
+                entry = json.loads(entry_json)
+                # 应用过滤器
+                if entity_type and entry.get("entity_type") != self._normalize_entity_type(entity_type):
+                    continue
+                if correction_type:
+                    try:
+                        corr_type_enum = CorrectionType(correction_type)
+                        if entry.get("correction_type") != corr_type_enum.value:
+                            continue
+                    except ValueError:
+                        pass
+
+                # 获取完整报告
+                reports_key = self.CORRECTION_REPORTS_KEY.format(
+                    entity_type=entry["entity_type"],
+                    entity_id=entry["entity_id"],
+                )
+                # 查找匹配的报告
+                all_reports = self.redis.lrange(reports_key, 0, -1)
+                for report_json in all_reports:
+                    report = self._deserialize_report(report_json)
+                    if report and report.reported_at.isoformat() == entry.get("reported_at"):
+                        filtered_reports.append(report)
+                        total_count += 1
+                        break
+
+            except (json.JSONDecodeError, KeyError):
+                continue
+
+        # 计算分页
+        total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 1
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+
+        # 按时间倒序返回
+        paginated_reports = sorted(
+            filtered_reports,
+            key=lambda r: r.reported_at,
+            reverse=True
+        )[start_idx:end_idx]
+
+        return {
+            "reports": paginated_reports,
+            "total_count": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+        }
 
     async def alert_high_correction(
         self,

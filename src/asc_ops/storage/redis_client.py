@@ -9,7 +9,7 @@ Redis 客户端封装
 
 import redis
 from redis.connection import ConnectionPool
-from typing import Optional, Any
+from typing import Optional, Any, Union
 import logging
 
 logger = logging.getLogger(__name__)
@@ -295,6 +295,66 @@ class RedisClient:
             data.difference_update(values)
             return removed
         return self._client.srem(key, *values)
+
+    def zadd(self, key: str, mapping: dict) -> int:
+        """
+        向有序集合添加成员
+
+        Args:
+            key: 键
+            mapping: 成员到分数的映射 {member: score, ...}
+
+        Returns:
+            添加的成员数量
+        """
+        if self._mock:
+            if "ascendc:correction_reports:index" not in self._mock_data:
+                self._mock_data["ascendc:correction_reports:index"] = {}
+            data = self._mock_data["ascendc:correction_reports:index"]
+            if not isinstance(data, dict):
+                data = {}
+                self._mock_data["ascendc:correction_reports:index"] = data
+            for member, score in mapping.items():
+                data[member] = score
+            return len(mapping)
+        return self._client.zadd(key, mapping)
+
+    def zrangebyscore(
+        self,
+        key: str,
+        min: Union[float, str],
+        max: Union[float, str],
+        withscores: bool = False,
+    ) -> list:
+        """
+        按分数范围查询有序集合
+
+        Args:
+            key: 键
+            min: 最小分数
+            max: 最大分数
+            withscores: 是否返回分数
+
+        Returns:
+            成员列表或 (成员, 分数) 列表
+        """
+        if self._mock:
+            data = self._mock_data.get(key, {})
+            if not isinstance(data, dict):
+                return []
+            result = []
+            min_score = float(min) if isinstance(min, (int, float, str)) else 0
+            max_score = float(max) if isinstance(max, (int, float, str)) else float("inf")
+            if max == "+inf":
+                max_score = float("inf")
+            for member, score in data.items():
+                if min_score <= score <= max_score:
+                    if withscores:
+                        result.append((member, score))
+                    else:
+                        result.append(member)
+            return result
+        return self._client.zrangebyscore(key, min, max, withscores=withscores)
 
     # ==================== 连接管理 ====================
 

@@ -27,6 +27,16 @@ class CorrectionReportRequest(BaseModel):
     suggested_fix: Optional[str] = Field(default=None, description="建议修复")
 
 
+class CorrectionReportQueryRequest(BaseModel):
+    """纠错报告查询请求"""
+    entity_type: Optional[str] = Field(default=None, description="实体类型: bug | optimization | api")
+    correction_type: Optional[str] = Field(default=None, description="纠错类型: wrong | incomplete | outdated | misleading")
+    start_date: Optional[str] = Field(default=None, description="开始日期 (ISO格式)")
+    end_date: Optional[str] = Field(default=None, description="结束日期 (ISO格式)")
+    page: int = Field(default=1, ge=1, description="页码")
+    page_size: int = Field(default=10, ge=1, le=100, description="每页数量")
+
+
 class CitationQueryRequest(BaseModel):
     """引用查询请求"""
     entity_id: str = Field(..., description="实体 ID")
@@ -70,6 +80,27 @@ class TopInaccurateResponse(BaseModel):
     error_rate: float
     citation_count: int
     correction_count: int
+
+
+class CorrectionReportItem(BaseModel):
+    """纠错报告条目"""
+    entity_id: str
+    entity_type: str
+    correction_type: str
+    user_id: Optional[str]
+    description: str
+    suggested_fix: Optional[str]
+    reported_at: str
+
+
+class CorrectionReportListResponse(BaseModel):
+    """纠错报告列表响应"""
+    success: bool
+    reports: List[CorrectionReportItem]
+    total_count: int
+    page: int
+    page_size: int
+    total_pages: int
 
 
 # 共享服务实例
@@ -151,6 +182,70 @@ async def get_correction_stats(entity_type: str, entity_id: str):
             }
         }
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/correction/reports", response_model=CorrectionReportListResponse)
+async def query_correction_reports(
+    entity_type: Optional[str] = None,
+    correction_type: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 10,
+):
+    """
+    查询纠错报告列表
+
+    支持按实体类型、纠错类型、时间范围过滤，支持分页
+    """
+    try:
+        from datetime import datetime
+
+        api = get_feedback_api()
+
+        # 解析时间参数
+        start_dt = None
+        end_dt = None
+        if start_date:
+            start_dt = datetime.fromisoformat(start_date)
+        if end_date:
+            end_dt = datetime.fromisoformat(end_date)
+
+        result = api.query_correction_reports(
+            entity_type=entity_type,
+            correction_type=correction_type,
+            start_date=start_dt,
+            end_date=end_dt,
+            page=page,
+            page_size=page_size,
+        )
+
+        # 转换报告为响应格式
+        reports = []
+        for r in result["reports"]:
+            reports.append(CorrectionReportItem(
+                entity_id=r.entity_id,
+                entity_type=r.entity_type,
+                correction_type=r.correction_type.value,
+                user_id=r.user_id,
+                description=r.description,
+                suggested_fix=r.suggested_fix,
+                reported_at=r.reported_at.isoformat(),
+            ))
+
+        return CorrectionReportListResponse(
+            success=True,
+            reports=reports,
+            total_count=result["total_count"],
+            page=result["page"],
+            page_size=result["page_size"],
+            total_pages=result["total_pages"],
+        )
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

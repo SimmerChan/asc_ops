@@ -5,6 +5,7 @@
 查询 API 路由
 """
 
+import os
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -16,6 +17,7 @@ from ..knowledge_query import (
     PossibleCause,
 )
 from ..models import AscendCAPIDefinition
+from ..storage.redis_client import RedisClient
 
 router = APIRouter()
 
@@ -67,7 +69,17 @@ def get_query_service() -> KnowledgeQueryService:
     """获取查询服务实例"""
     global _query_service
     if _query_service is None:
-        _query_service = KnowledgeQueryService()
+        redis_client = RedisClient(
+            host=os.environ.get("REDIS_HOST", "localhost"),
+            port=int(os.environ.get("REDIS_PORT", "6379")),
+            db=int(os.environ.get("REDIS_DB", "0")),
+            password=os.environ.get("REDIS_PASSWORD"),
+            mock=False,
+        )
+        _query_service = KnowledgeQueryService(
+            redis_client=redis_client,
+            chroma_db_path=os.environ.get("CHROMA_DB_PATH", "./data/chroma_db"),
+        )
     return _query_service
 
 
