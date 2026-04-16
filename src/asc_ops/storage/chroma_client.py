@@ -243,7 +243,7 @@ class ChromaDBClient:
         collection = self.get_collection(collection_name)
 
         if include is None:
-            include = ["documents", "metadatas"]
+            include = ["documents", "metadatas", "embeddings"]
 
         return collection.get(
             ids=ids,
