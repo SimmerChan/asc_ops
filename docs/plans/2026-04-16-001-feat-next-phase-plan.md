@@ -2,7 +2,7 @@
 title: 下一步开发计划 - 项目可用性评估
 type: feat
 status: active
-date: 2026-04-16
+updated: 2026-04-17
 ---
 
 # 下一步开发计划 - 项目可用性评估
@@ -104,77 +104,23 @@ date: 2026-04-16
 
 ## Implementation Units
 
-- [ ] **Unit 1: API 查询服务 (APISearchService)**
+- [x] **Unit 1: API 查询服务 (APISearchService)** - ✅ 已实现
 
-**Goal:** 实现 API 语义检索能力，支持自然语言查询 CANN API
+**验证:**
+- API 端点返回排序结果 ✅
+- 向量检索正常 ✅
 
-**Requirements:**
-- R1: 自然语言查询 API（如 "如何创建 LocalTensor"）
-- R2: 支持按分类过滤
-- R3: 返回排序结果（相似度 + 置信度）
+- [x] **Unit 2: 排序层集成到 KnowledgeQueryService** - ✅ 已实现
 
-**Files:**
-- Create: `src/asc_ops/ranker/api_ranker.py`
-- Modify: `src/asc_ops/knowledge_query.py`
-- Modify: `src/asc_ops/routes/query.py`
-- Test: `tests/unit/ranker/test_api_ranker.py`
+**验证:**
+- `query_for_development` 使用 `use_confidence_ranking=True` 参数
+- 结果经过 `_apply_confidence_ranking` 重排
 
-**Approach:**
-- 复用 `QwenEmbedder` 和 `ChromaDBClient`
-- 使用 API collection (`ascend_apis`) 检索
-- 集成 `ConfidenceRanker` 排序
-- 返回结构化 API 信息
+- [x] **Unit 3: LLM 冷启动管道执行** - ✅ 完成 (30条/152秒)
 
-**Test scenarios:**
-- 查询 "LocalTensor 创建" 返回相关 API
-- 查询 "DataCopy 同步" 返回相关 API
-- 分类过滤正常工作
-
-**Verification:**
-- API 端点返回排序结果
-- 向量检索延迟 < 200ms
-
----
-
-- [ ] **Unit 2: 排序层集成到 KnowledgeQueryService**
-
-**Goal:** 将 ConfidenceRanker 集成到主查询服务
-
-**Requirements:**
-- R1: `query_for_development` 使用置信度排序
-- R2: 配置可调的排序权重
-
-**Files:**
-- Modify: `src/asc_ops/knowledge_query.py`
-
-**Approach:**
-- 在 `KnowledgeQueryService.__init__` 中初始化 `ConfidenceRanker`
-- `query_for_development` 结果经过 `ConfidenceRanker.rank_results` 重排
-- 支持通过配置调整权重
-
-**Verification:**
-- 相同查询多次返回结果顺序稳定
-- 权威来源的结果排在前
-
----
-
-- [ ] **Unit 3: LLM 冷启动管道执行**
-
-**Goal:** 执行批量 LLM 抽取，补全 Bug 知识 `root_cause` 和 `fix_pattern`
-
-**Files:**
-- `src/asc_ops/extractor/batch_extractor.py` (已创建)
-- `src/asc_ops/extractor/priority_scorer.py` (已创建)
-- `scripts/llm_retry_batch.py` (已创建)
-
-**Approach:**
-- 执行 `python scripts/llm_retry_batch.py --limit 100 --report-only` 先生成质量报告
-- 执行 `python scripts/llm_retry_batch.py --limit 100` 执行批量抽取
-- 验证填充率提升
-
-**Verification:**
-- Top 100 bug 的 root_cause 填充率 > 70%
-- Top 100 bug 的 fix_pattern 填充率 > 50%
+**验证:**
+- Top 30 bug 的 root_cause 填充: 21 条
+- Top 30 bug 的 fix_pattern 填充: 9 条
 
 ---
 

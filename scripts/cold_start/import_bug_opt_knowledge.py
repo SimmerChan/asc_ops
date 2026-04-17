@@ -5,16 +5,20 @@
 """
 Bug/优化知识批量导入脚本
 
-从 6 个昇腾算子仓的本地 git 仓库导入 Bug/优化知识。
+从昇腾算子仓的本地 git 仓库导入 Bug/优化知识。
 使用规则抽取器（无 LLM），所有 commits 都存储（包括 extraction_success=False 的）。
 
 Usage:
     python scripts/cold_start/import_bug_opt_knowledge.py [--repo REPO] [--limit N] [--dry-run]
 
 Environment:
+    REPOS_YAML_PATH: repos.yaml 配置文件路径 (默认: ./repos.yaml)
     CHROMA_DB_PATH: ChromaDB 路径 (默认: ./data/chroma_db)
     REDIS_HOST: Redis 主机 (默认: localhost)
     REDIS_PORT: Redis 端口 (默认: 6379)
+
+Config (repos.yaml):
+    每个仓库可配置 local_path 指定本地路径，优先于默认的克隆路径。
 """
 
 import argparse
@@ -22,10 +26,11 @@ import logging
 import os
 import subprocess
 import sys
+import yaml
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 # 添加项目根目录到 path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -54,8 +59,68 @@ ASCEND_REPOS = [
     "ops-cv",
 ]
 
-# 本地仓库路径
-REPO_BASE_PATH = Path("/tmp/ascend_repos")
+
+def get_repos_config() -> Dict[str, dict]:
+    """
+    从 repos.yaml 加载仓库配置
+
+    Returns:
+        Dict[str, dict]: {仓库名: {platform, local_path, ...}}
+    """
+    config_path = Path(os.environ.get("REPOS_YAML_PATH", "./repos.yaml"))
+    if not config_path.exists():
+        logger.warning(f"repos.yaml not found: {config_path}")
+        return {}
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    repos = config.get("repos", []) if config else []
+    return {repo["name"]: repo for repo in repos}
+
+
+def get_repo_path(repo_name: str) -> Path:
+    """
+    获取单个仓库的路径
+
+    优先从 repos.yaml 的 local_path 配置获取，
+    其次使用仓库根目录下的子目录。
+
+    Args:
+        repo_name: 仓库名称 (如 "CANN/ops-nn" 或 "ops-nn")
+
+    Returns:
+        Path: 仓库路径
+    """
+    repos_config = get_repos_config()
+
+    # 支持简短名称匹配 (如 "ops-nn" 匹配 "CANN/ops-nn")
+    full_name = None
+    short_name = None
+    for name in repos_config:
+        if name.endswith(f"/{repo_name}"):
+            full_name = name
+            short_name = name.split("/")[-1]
+            break
+        if name == repo_name:
+            full_name = name
+            short_name = repo_name
+            break
+
+    # 优先使用 repos.yaml 中的 local_path
+    if full_name and full_name in repos_config:
+        local_path = repos_config[full_name].get("local_path")
+        if local_path:
+            path = Path(local_path)
+            if path.exists():
+                logger.info(f"使用 repos.yaml 配置路径 for {repo_name}: {path}")
+                return path
+            else:
+                logger.warning(f"repos.yaml 配置路径不存在: {path}, fallback to default")
+
+    # 其次使用默认仓库根目录
+    base_path = Path(os.environ.get("ASCEND_REPO_BASE_PATH", "/tmp/ascend_repos"))
+    return base_path / repo_name
 
 
 @dataclass
@@ -190,7 +255,7 @@ def import_from_repository(
     """
     stats = ImportStats()
 
-    repo_path = REPO_BASE_PATH / repo_name
+    repo_path = get_repo_path(repo_name)
     if not repo_path.exists():
         logger.warning(f"Repository not found: {repo_path}")
         return stats
@@ -348,7 +413,7 @@ Examples:
 
     # 导入每个仓库
     for repo in repos:
-        repo_path = REPO_BASE_PATH / repo
+        repo_path = get_repo_path(repo)
         if not repo_path.exists():
             logger.warning(f"跳过 {repo} (路径不存在: {repo_path})")
             continue
