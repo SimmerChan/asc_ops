@@ -8,8 +8,9 @@ AscendC 知识库配置管理
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+from typing import Optional, List
 from pathlib import Path
+from dataclasses import dataclass, field
 
 
 class ChromaDBConfig(BaseSettings):
@@ -116,6 +117,20 @@ class ServerConfig(BaseSettings):
     log_level: str = "INFO"
 
 
+@dataclass
+class PeerRepoConfig:
+    """
+    对等仓库配置
+
+    用于配置 GPU 仓和 NPU 仓的对等关系，支持 LLM 分析
+    """
+    name: str
+    gpu_repo_path: str  # GPU 仓本地路径
+    npu_repo_path: str  # NPU 仓本地路径
+    gpu_platform: str = "cuda"  # GPU 平台: cuda/cutlass/cublas/cudnn
+    analysis_paths: List[str] = field(default_factory=list)  # 用户指定要分析的子目录或文件路径
+
+
 class AppConfig(BaseSettings):
     """应用主配置"""
 
@@ -187,3 +202,39 @@ def reset_config() -> None:
     """重置配置 (主要用于测试)"""
     global _config
     _config = None
+
+
+def load_peer_repos_config(config_path: str = "peer_repos.yaml") -> List[PeerRepoConfig]:
+    """
+    加载对等仓库配置
+
+    Args:
+        config_path: 配置文件路径
+
+    Returns:
+        PeerRepoConfig 列表
+    """
+    import yaml
+
+    path = Path(config_path)
+    if not path.exists():
+        return []
+
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+
+    if not data or "peer_repos" not in data:
+        return []
+
+    configs = []
+    for repo_data in data["peer_repos"]:
+        config = PeerRepoConfig(
+            name=repo_data.get("name", ""),
+            gpu_repo_path=repo_data.get("gpu_repo_path", ""),
+            npu_repo_path=repo_data.get("npu_repo_path", ""),
+            gpu_platform=repo_data.get("gpu_platform", "cuda"),
+            analysis_paths=repo_data.get("analysis_paths", []),
+        )
+        configs.append(config)
+
+    return configs

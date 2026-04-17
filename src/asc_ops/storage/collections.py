@@ -17,6 +17,7 @@ class CollectionType(Enum):
     ASCEND_APIS = "ascend_apis"
     BUG_FIXES = "bug_fixes"
     OPTIMIZATIONS = "optimizations"
+    CROSS_PLATFORM_MAPPINGS = "cross_platform_mappings"
 
 
 # Collection 配置映射
@@ -53,6 +54,19 @@ COLLECTION_CONFIGS: dict[CollectionType, dict] = {
             "description": "NPU 算子优化知识库",
             "version": "1.0",
             "knowledge_type": "optimization",
+        },
+        "index_params": {
+            "hnsw_space_type": "cosine",
+            "hnsw_construction_ef": 100,
+            "hnsw_search_ef": 100,
+        },
+    },
+    CollectionType.CROSS_PLATFORM_MAPPINGS: {
+        "name": "cross_platform_mappings",
+        "metadata": {
+            "description": "GPU-NPU 跨平台映射知识库",
+            "version": "1.0",
+            "knowledge_type": "cross_platform_mapping",
         },
         "index_params": {
             "hnsw_space_type": "cosine",

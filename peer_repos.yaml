@@ -1,0 +1,29 @@
+# GPU-NPU 对等仓库配置
+#
+# 用于 LLM 分析 GPU 算子仓和 NPU 算子仓的等价关系
+#
+# 字段说明:
+# - name: 对等配置名称（唯一标识）
+# - gpu_repo_path: GPU 仓本地路径（如 cuBLAS、CUTLASS 克隆路径）
+# - npu_repo_path: NPU 仓本地路径（如 AscendC 算子仓路径）
+# - gpu_platform: GPU 平台类型 (cuda/cutlass/cublas/cudnn)
+# - analysis_paths: 要分析的子目录或文件路径（相对于仓根目录）
+
+# 示例: cuBLAS <-> AscendC Matmul
+peer_repos:
+  - name: cublas-ascend-matmul
+    gpu_repo_path: /Users/huangshilei/Documents/pythonprojects/cuBLAS
+    npu_repo_path: /Users/huangshilei/Documents/pythonprojects/ops-math
+    gpu_platform: cublas
+    analysis_paths:
+      - /include/cublas.h
+      - /src/gemv.cpp
+
+  # 示例: CUTLASS <-> AscendC GEMM
+  - name: cutlass-ascend-gemm
+    gpu_repo_path: /Users/huangshilei/Documents/pythonprojects/CUTLASS
+    npu_repo_path: /Users/huangshilei/Documents/pythonprojects/ops-math
+    gpu_platform: cutlass
+    analysis_paths:
+      - /include/cutlass/gemm/device/
+      - /include/cutlass/kernel.h

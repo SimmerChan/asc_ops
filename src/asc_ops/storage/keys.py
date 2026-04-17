@@ -28,6 +28,8 @@ class KeyNamespace(Enum):
     CONFIG = "config"
     # 临时数据
     TEMP = "temp"
+    # 跨平台映射
+    MAPPING = "mapping"
 
 
 # Key 模式定义
@@ -59,6 +61,12 @@ class KeyPattern:
 
     # 配置 Keys
     CONFIG_LAST_SYNC = "config:last_sync"  # 上次同步时间
+
+    # 跨平台映射 Keys
+    MAPPING_INDEX = "mapping:{mapping_id}"  # 映射索引信息
+    MAPPING_LIST = "mapping:list"  # 映射 ID 列表
+    MAPPING_SOURCE = "mapping:{mapping_id}:source"  # 映射来源 (llm_high_conf/llm_suggested)
+    MAPPING_GPU_API = "mapping:gpu:{gpu_api}"  # 按 GPU API 索引的映射
 
 
 def build_key(pattern: str, **kwargs: str) -> str:

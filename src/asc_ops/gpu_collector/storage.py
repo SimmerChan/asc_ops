@@ -73,6 +73,9 @@ class GPUStorage:
             self._apis_collection = self._chroma_client.get_or_create_collection(
                 "gpu_apis"
             )
+            self._cross_platform_collection = self._chroma_client.get_or_create_collection(
+                "cross_platform_mappings"
+            )
 
     def store_kernel(self, kernel: GPUKernelKnowledge) -> bool:
         """存储 GPU Kernel 知识"""
@@ -154,6 +157,68 @@ class GPUStorage:
             logger.error(f"Failed to store mapping: {e}")
             raise GPUStorageError(f"Mapping storage failed: {e}")
 
+    def store_cross_platform_mapping(
+        self,
+        mapping: CrossPlatformMapping,
+        source: str = "llm_suggested",
+    ) -> bool:
+        """
+        存储跨平台映射（双写：ChromaDB + Redis）
+
+        Args:
+            mapping: 跨平台映射对象
+            source: 来源标记 (llm_high_conf/llm_suggested)
+
+        Returns:
+            是否存储成功
+        """
+        try:
+            if self._use_mock:
+                self._mapping_store[mapping.mapping_id] = mapping
+                logger.debug(f"Stored cross-platform mapping (mock): {mapping.mapping_id}")
+                return True
+
+            # 先写 Redis
+            if self._redis_client is not None:
+                mapping_key = f"mapping:{mapping.mapping_id}"
+                self._redis_client.hset(mapping_key, mapping={
+                    "gpu_api": mapping.gpu_api,
+                    "npu_api": mapping.npu_api,
+                    "platform": mapping.platform.value,
+                    "equivalence_level": mapping.equivalence_level.value,
+                    "adaptation_notes": mapping.adaptation_notes,
+                    "confidence": str(mapping.confidence),
+                    "source": source,
+                })
+                # 添加到映射列表
+                self._redis_client.sadd("mapping:list", mapping.mapping_id)
+                # 按 GPU API 索引
+                self._redis_client.sadd(f"mapping:gpu:{mapping.gpu_api.lower()}", mapping.mapping_id)
+
+            # 再写 ChromaDB（用于语义检索）
+            if self._chroma_client is not None:
+                metadata = {
+                    "gpu_api": mapping.gpu_api,
+                    "npu_api": mapping.npu_api,
+                    "platform": mapping.platform.value,
+                    "equivalence_level": mapping.equivalence_level.value,
+                    "confidence": mapping.confidence,
+                    "source": source,
+                }
+                document = f"{mapping.gpu_api} -> {mapping.npu_api}: {mapping.adaptation_notes}"
+                self._cross_platform_collection.upsert(
+                    ids=[mapping.mapping_id],
+                    metadatas=[metadata],
+                    documents=[document],
+                )
+
+            logger.info(f"Stored cross-platform mapping: {mapping.mapping_id} (source={source})")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to store cross-platform mapping: {e}")
+            raise GPUStorageError(f"Cross-platform mapping storage failed: {e}")
+
     def get_kernel(self, kernel_id: str) -> Optional[GPUKernelKnowledge]:
         """获取 GPU Kernel"""
         if self._use_mock:
@@ -197,6 +262,98 @@ class GPUStorage:
                         equivalence_level=MappingEquivalenceLevel(parts[1]),
                     )
         return None
+
+    def get_cross_platform_mapping(
+        self,
+        mapping_id: str,
+    ) -> Optional[CrossPlatformMapping]:
+        """
+        获取跨平台映射（通过 ID）
+
+        Args:
+            mapping_id: 映射 ID
+
+        Returns:
+            CrossPlatformMapping 或 None
+        """
+        if self._use_mock:
+            return self._mapping_store.get(mapping_id)
+
+        if self._redis_client is not None:
+            key = f"mapping:{mapping_id}"
+            data = self._redis_client.hgetall(key)
+            if data:
+                from .models import GPUPlatform
+                return CrossPlatformMapping(
+                    mapping_id=mapping_id,
+                    gpu_api=data.get("gpu_api", ""),
+                    npu_api=data.get("npu_api", ""),
+                    platform=GPUPlatform(data.get("platform", "cuda")),
+                    equivalence_level=MappingEquivalenceLevel(data.get("equivalence_level", "similar")),
+                    adaptation_notes=data.get("adaptation_notes", ""),
+                    confidence=float(data.get("confidence", "0.5")),
+                    source=data.get("source", "llm_suggested"),
+                )
+        return None
+
+    def search_cross_platform_mappings(
+        self,
+        query: str,
+        platform: Optional[GPUPlatform] = None,
+        source: Optional[str] = None,
+        min_confidence: float = 0.0,
+        limit: int = 10,
+    ) -> List[CrossPlatformMapping]:
+        """
+        搜索跨平台映射
+
+        Args:
+            query: 查询文本（用于 ChromaDB 向量搜索）
+            platform: GPU 平台过滤
+            source: 来源过滤 (llm_high_conf/llm_suggested)
+            min_confidence: 最低置信度
+            limit: 返回数量限制
+
+        Returns:
+            CrossPlatformMapping 列表
+        """
+        if self._use_mock:
+            results = []
+            for mapping in self._mapping_store.values():
+                if query.lower() in mapping.gpu_api.lower() or query.lower() in mapping.npu_api.lower():
+                    if platform is None or mapping.platform == platform:
+                        if mapping.confidence >= min_confidence:
+                            results.append(mapping)
+            return sorted(results, key=lambda x: x.confidence, reverse=True)[:limit]
+
+        results = []
+        if self._chroma_client is not None:
+            chroma_results = self._cross_platform_collection.query(
+                query_texts=[query],
+                n_results=limit,
+            )
+            if chroma_results and chroma_results["ids"]:
+                for i, mid in enumerate(chroma_results["ids"]):
+                    metadata = chroma_results["metadatas"][i]
+                    confidence = float(metadata.get("confidence", 0.0))
+                    if confidence < min_confidence:
+                        continue
+                    if source and metadata.get("source") != source:
+                        continue
+                    if platform and metadata.get("platform") != platform.value:
+                        continue
+                    from .models import GPUPlatform
+                    results.append(CrossPlatformMapping(
+                        mapping_id=mid,
+                        gpu_api=metadata.get("gpu_api", ""),
+                        npu_api=metadata.get("npu_api", ""),
+                        platform=GPUPlatform(metadata.get("platform", "cuda")),
+                        equivalence_level=MappingEquivalenceLevel(metadata.get("equivalence_level", "similar")),
+                        adaptation_notes=metadata.get("adaptation_notes", ""),
+                        confidence=confidence,
+                        source=metadata.get("source", "llm_suggested"),
+                    ))
+        return sorted(results, key=lambda x: x.confidence, reverse=True)[:limit]
 
     def search_kernels(
         self,
