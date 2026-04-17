@@ -11,6 +11,7 @@
 | [安装指南](getting-started/installation.md) | 详细的安装步骤和环境配置 |
 | [快速入门](getting-started/quickstart.md) | 5分钟快速体验 |
 | [首次查询](getting-started/first-query.md) | 详细查询示例 |
+| [Coding Agent使用案例](getting-started/coding-agent-usecases.md) | Agent开发调试完整案例 |
 
 ## 部署指南
 
@@ -74,3 +75,4 @@
 | 2026-04-10 | 补充README、快速入门、部署、API文档 |
 | 2026-04-11 | 更新MVP完成状态，Phase 1-5 全部完成 |
 | 2026-04-11 | 更新今日完成工作，待处理事项 |
+| 2026-04-17 | 新增Coding Agent使用案例文档 |

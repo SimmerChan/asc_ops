@@ -146,6 +146,7 @@ asc_ops/
 
 - [快速入门](docs/getting-started/quickstart.md) - 5分钟快速上手
 - [安装指南](docs/getting-started/installation.md) - 详细安装步骤
+- [Coding Agent使用案例](docs/getting-started/coding-agent-usecases.md) - Agent开发调试完整案例
 - [API参考](docs/api/reference.md) - 接口文档
 - [设计文档](docs/design/) - 架构设计详情
 - [Roadmap](docs/roadmap/) - 实施计划
