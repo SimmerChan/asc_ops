@@ -321,6 +321,36 @@ class TestStorageIntegration:
         stored = storage.search_cross_platform_mappings("cublas")
         assert len(stored) == 1
 
+    def test_store_analysis_results_batch(self, tmp_path):
+        """测试批量存储分析结果"""
+        storage = GPUStorage(use_mock=True)
+        engine = GPUNPUAnalysisEngine(llm_client=None, storage=storage)
+
+        # 创建多个分析结果
+        analyses = []
+        for i in range(3):
+            analysis = FilePairAnalysis(
+                gpu_file=str(tmp_path / f"test_{i}.cu"),
+                npu_file=str(tmp_path / f"test_{i}.cpp"),
+                gpu_api=f"cublasSgemm_{i}",
+                result=AnalysisResult(
+                    is_equivalent=True,
+                    npu_equivalent="Matmul",
+                    equivalence_level=MappingEquivalenceLevel.EXACT,
+                    confidence=0.9,
+                    adaptation_notes="",
+                    optimization_hints="none",
+                ),
+            )
+            analyses.append(analysis)
+
+        success, failed = engine.store_analysis_results(analyses, dry_run=False)
+
+        assert success == 3
+        assert failed == 0
+        stored = storage.search_cross_platform_mappings("cublas")
+        assert len(stored) == 3
+
 
 # 需要导入 json
 import json

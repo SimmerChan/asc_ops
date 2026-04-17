@@ -13,7 +13,7 @@ import json
 import uuid
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any, TYPE_CHECKING
+from typing import List, Optional, Dict, Any, Tuple, TYPE_CHECKING
 from pathlib import Path
 
 from ..gpu_collector.models import (
@@ -112,6 +112,7 @@ class FilePairAnalysis:
     npu_file: str
     gpu_api: str
     result: AnalysisResult
+    gpu_platform: GPUPlatform = GPUPlatform.CUDA
     parsing_failed: bool = False
 
 
@@ -197,6 +198,7 @@ class GPUNPUAnalysisEngine:
                 npu_file=str(npu_file),
                 gpu_api=gpu_api_name,
                 result=result,
+                gpu_platform=gpu_platform,
                 parsing_failed=result.parsing_failed,
             )
 
@@ -215,6 +217,7 @@ class GPUNPUAnalysisEngine:
                     optimization_hints="none",
                     parsing_failed=True,
                 ),
+                gpu_platform=gpu_platform,
                 parsing_failed=True,
             )
 
@@ -406,7 +409,7 @@ class GPUNPUAnalysisEngine:
         # 转换为 CrossPlatformMapping
         mapping = analysis.result.to_cross_platform_mapping(
             gpu_api=analysis.gpu_api,
-            platform=GPUPlatform.CUDA,  # 需要从上下文获取
+            platform=analysis.gpu_platform,
         )
 
         # 根据置信度确定 source
@@ -418,3 +421,35 @@ class GPUNPUAnalysisEngine:
 
         logger.warning("No storage configured, skipping storage")
         return False
+
+    def store_analysis_results(
+        self,
+        analyses: List[FilePairAnalysis],
+        dry_run: bool = False,
+    ) -> Tuple[int, int]:
+        """
+        批量存储分析结果
+
+        Args:
+            analyses: 分析结果列表
+            dry_run: 是否为 dry-run 模式
+
+        Returns:
+            (成功数, 失败数)
+        """
+        if dry_run:
+            equivalent_count = sum(1 for a in analyses if a.result.is_equivalent)
+            logger.info(f"Dry-run: would store {equivalent_count} mappings")
+            return (equivalent_count, 0)
+
+        success = 0
+        failed = 0
+
+        for analysis in analyses:
+            if self.store_analysis_result(analysis, dry_run=False):
+                success += 1
+            else:
+                failed += 1
+
+        logger.info(f"Storage complete: {success} succeeded, {failed} failed")
+        return (success, failed)
