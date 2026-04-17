@@ -103,23 +103,27 @@ def discover_file_pairs(
     Args:
         gpu_repo: GPU 仓根目录
         npu_repo: NPU 仓根目录
-        analysis_paths: 要分析的路径列表
+        analysis_paths: 要分析的路径列表（为空时扫描整个仓库）
 
     Returns:
         [(gpu_file, npu_file), ...] 列表
     """
     pairs = []
 
-    for path in analysis_paths:
-        gpu_path = gpu_repo / path
-        npu_path = npu_repo / path
+    # 如果没有指定路径，扫描整个仓库
+    if not analysis_paths:
+        pairs.extend(_discover_pairs_in_dir(gpu_repo, npu_repo))
+    else:
+        for path in analysis_paths:
+            gpu_path = gpu_repo / path
+            npu_path = npu_repo / path
 
-        # 如果是文件，直接配对
-        if gpu_path.is_file() and npu_path.is_file():
-            pairs.append((gpu_path, npu_path))
-        # 如果是目录，递归查找配对的源文件
-        elif gpu_path.is_dir() and npu_path.is_dir():
-            pairs.extend(_discover_pairs_in_dir(gpu_path, npu_path))
+            # 如果是文件，直接配对
+            if gpu_path.is_file() and npu_path.is_file():
+                pairs.append((gpu_path, npu_path))
+            # 如果是目录，递归查找配对的源文件
+            elif gpu_path.is_dir() and npu_path.is_dir():
+                pairs.extend(_discover_pairs_in_dir(gpu_path, npu_path))
 
     return pairs
 
@@ -127,8 +131,9 @@ def discover_file_pairs(
 def _discover_pairs_in_dir(gpu_dir: Path, npu_dir: Path) -> List[Tuple[Path, Path]]:
     """递归发现文件对"""
     pairs = []
-    gpu_files = {f.name: f for f in gpu_dir.rglob("*.cu") if f.is_file()}
-    npu_files = {f.name: f for f in npu_dir.rglob("*.cpp") if f.is_file()}
+    # 使用 stem (不含扩展名) 作为 key 以匹配 .cu 和 .cpp 文件
+    gpu_files = {f.stem: f for f in gpu_dir.rglob("*.cu") if f.is_file()}
+    npu_files = {f.stem: f for f in npu_dir.rglob("*.cpp") if f.is_file()}
 
     # 配对相同文件名的文件
     for name in gpu_files:
@@ -216,17 +221,43 @@ async def run_analyze_mapping(args) -> int:
         for i, (gpu_file, npu_file) in enumerate(file_pairs):
             print(f"  [{i+1}/{len(file_pairs)}] 分析: {gpu_file.name} <-> {npu_file.name}")
 
-            analysis = await engine.analyze_file_pair(
-                gpu_file=gpu_file,
-                npu_file=npu_file,
-                gpu_platform=gpu_platform,
-            )
-            results.append(analysis)
-
-            # dry-run 时输出结果
             if args.dry_run:
+                # dry-run 模式：跳过 LLM 调用，只显示会分析哪些文件对
+                from ..mapper.llm_analyzer import FilePairAnalysis, AnalysisResult
+                from ..gpu_collector.models import MappingEquivalenceLevel
+
+                gpu_api = gpu_file.stem.upper()
+                if gpu_api.endswith("_KERNEL"):
+                    gpu_api = gpu_api.replace("_KERNEL", "")
+                if gpu_api.endswith("_OP"):
+                    gpu_api = gpu_api.replace("_OP", "")
+
+                analysis = FilePairAnalysis(
+                    gpu_file=str(gpu_file),
+                    npu_file=str(npu_file),
+                    gpu_api=gpu_api,
+                    gpu_platform=gpu_platform,
+                    result=AnalysisResult(
+                        is_equivalent=False,
+                        npu_equivalent="N/A",
+                        equivalence_level=MappingEquivalenceLevel.CONCEPTUAL_ONLY,
+                        confidence=0.0,
+                        adaptation_notes="dry-run mode",
+                        optimization_hints="none",
+                    ),
+                    parsing_failed=False,
+                )
+                print(f"    [dry-run] GPU API: {gpu_api}")
+            else:
+                analysis = await engine.analyze_file_pair(
+                    gpu_file=gpu_file,
+                    npu_file=npu_file,
+                    gpu_platform=gpu_platform,
+                )
                 print(f"    -> {analysis.gpu_api} -> {analysis.result.npu_equivalent} "
                       f"(置信度: {analysis.result.confidence:.2f})")
+
+            results.append(analysis)
 
         # 统计结果
         total = len(results)
