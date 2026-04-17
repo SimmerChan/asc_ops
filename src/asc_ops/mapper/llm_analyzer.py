@@ -22,7 +22,6 @@ from ..gpu_collector.models import (
     MappingEquivalenceLevel,
 )
 from ..gpu_collector.storage import GPUStorage
-from .predefined_mappings import get_predefined_mapping
 
 if TYPE_CHECKING:
     from ..llm import UnifiedLLMClient

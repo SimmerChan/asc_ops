@@ -17,16 +17,9 @@ from ..gpu_collector.models import (
     MappingEquivalenceLevel,
 )
 
-from .predefined_mappings import (
-    get_predefined_mapping,
-    get_all_predefined_apis,
-    CUDA_MAPPINGS,
-    CUTLASS_MAPPINGS,
-    CUBLAS_MAPPINGS,
-)
-
 if TYPE_CHECKING:
     from ..llm import UnifiedLLMClient
+    from ..gpu_collector.storage import GPUStorage
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +97,7 @@ class MapperEngine:
         self,
         use_llm_enhancement: bool = False,
         llm_client: Optional["UnifiedLLMClient"] = None,
+        storage: Optional["GPUStorage"] = None,
     ):
         """
         初始化映射引擎
@@ -111,12 +105,14 @@ class MapperEngine:
         Args:
             use_llm_enhancement: 是否使用 LLM 增强未匹配 API 的映射
             llm_client: LLM 客户端 (用于生成映射建议)
+            storage: GPU 存储实例 (用于查询 cross_platform_mappings)
         """
         self._use_llm_enhancement = use_llm_enhancement
         self._llm_client = llm_client
+        self._storage = storage
         self._cache: Dict[str, MappingResult] = {}
 
-        logger.info(f"MapperEngine initialized (llm_enhancement={use_llm_enhancement})")
+        logger.info(f"MapperEngine initialized (llm_enhancement={use_llm_enhancement}, storage={storage is not None})")
 
     def find_mapping(
         self,
@@ -125,7 +121,7 @@ class MapperEngine:
         include_notes: bool = True,
     ) -> Optional[MappingResult]:
         """
-        查找 GPU API 的 NPU 映射 (同步版本，预定义映射)
+        查找 GPU API 的 NPU 映射 (同步版本)
 
         Args:
             gpu_api: GPU API 名称
@@ -143,20 +139,61 @@ class MapperEngine:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        # 查找预定义映射
-        mapping_info = get_predefined_mapping(gpu_api, gpu_platform)
+        # 优先从存储查询
+        if self._storage:
+            result = self._lookup_from_storage(gpu_api, gpu_platform, include_notes)
+            if result:
+                self._cache[cache_key] = result
+                return result
+            return None
 
-        if mapping_info:
-            result = MappingResult(
-                gpu_api=gpu_api,
-                npu_api=mapping_info["npu_api"],
-                equivalence_level=mapping_info["equivalence"],
-                adaptation_notes=mapping_info.get("notes", "") if include_notes else "",
-                confidence=1.0 if mapping_info["equivalence"] == MappingEquivalenceLevel.EXACT else 0.8,
-                source="predefined",
+        return None
+
+    def _lookup_from_storage(
+        self,
+        gpu_api: str,
+        gpu_platform: GPUPlatform,
+        include_notes: bool = True,
+    ) -> Optional[MappingResult]:
+        """从存储中查询映射"""
+        if not self._storage:
+            return None
+
+        try:
+            # 查询 cross_platform_mappings
+            mappings = self._storage.search_cross_platform_mappings(
+                query=gpu_api,
+                platform=gpu_platform,
+                min_confidence=0.5,
+                limit=10,
             )
-            self._cache[cache_key] = result
-            return result
+
+            # 精确匹配 gpu_api
+            for mapping in mappings:
+                if mapping.gpu_api.lower() == gpu_api.lower():
+                    return MappingResult(
+                        gpu_api=mapping.gpu_api,
+                        npu_api=mapping.npu_api,
+                        equivalence_level=mapping.equivalence_level,
+                        adaptation_notes=mapping.adaptation_notes if include_notes else "",
+                        confidence=mapping.confidence,
+                        source=mapping.source,
+                    )
+
+            # 如果没有精确匹配但有高置信度结果，返回第一个
+            if mappings and mappings[0].confidence >= 0.8:
+                mapping = mappings[0]
+                return MappingResult(
+                    gpu_api=mapping.gpu_api,
+                    npu_api=mapping.npu_api,
+                    equivalence_level=mapping.equivalence_level,
+                    adaptation_notes=mapping.adaptation_notes if include_notes else "",
+                    confidence=mapping.confidence,
+                    source=mapping.source,
+                )
+
+        except Exception as e:
+            logger.warning(f"Storage lookup failed for {gpu_api}: {e}")
 
         return None
 
@@ -185,24 +222,20 @@ class MapperEngine:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        # 查找预定义映射
-        mapping_info = get_predefined_mapping(gpu_api, gpu_platform)
+        # 优先从存储查询
+        if self._storage:
+            result = self._lookup_from_storage(gpu_api, gpu_platform, include_notes)
+            if result:
+                self._cache[cache_key] = result
+                return result
 
-        if mapping_info:
-            result = MappingResult(
-                gpu_api=gpu_api,
-                npu_api=mapping_info["npu_api"],
-                equivalence_level=mapping_info["equivalence"],
-                adaptation_notes=mapping_info.get("notes", "") if include_notes else "",
-                confidence=1.0 if mapping_info["equivalence"] == MappingEquivalenceLevel.EXACT else 0.8,
-                source="predefined",
-            )
-            self._cache[cache_key] = result
-            return result
-
-        # 如果启用 LLM 增强，生成建议
-        if self._use_llm_enhancement:
-            return await self._generate_llm_mapping(gpu_api, gpu_platform)
+            # 如果启用 LLM 增强，生成建议
+            if self._use_llm_enhancement:
+                llm_result = await self._generate_llm_mapping(gpu_api, gpu_platform)
+                if llm_result:
+                    self._cache[cache_key] = llm_result
+                    return llm_result
+            return None
 
         return None
 
@@ -224,26 +257,37 @@ class MapperEngine:
             相似的 MappingResult 列表
         """
         gpu_platform = self._normalize_platform(platform)
-        mappings = self._get_platform_mappings(gpu_platform)
 
-        # 简单的相似度匹配：基于 API 名称前缀/后缀
-        results = []
-        api_lower = gpu_api.lower()
+        # 如果有存储，使用向量搜索找相似
+        if self._storage:
+            try:
+                mappings = self._storage.search_cross_platform_mappings(
+                    query=gpu_api,
+                    platform=gpu_platform,
+                    min_confidence=0.3,
+                    limit=limit * 2,
+                )
 
-        for known_api, info in mappings.items():
-            if self._calculate_similarity(api_lower, known_api.lower()) > 0.3:
-                results.append(MappingResult(
-                    gpu_api=known_api,
-                    npu_api=info["npu_api"],
-                    equivalence_level=info["equivalence"],
-                    adaptation_notes=info.get("notes", ""),
-                    confidence=self._calculate_similarity(api_lower, known_api.lower()),
-                    source="predefined",
-                ))
+                results = []
+                api_lower = gpu_api.lower()
+                for mapping in mappings:
+                    sim = self._calculate_similarity(api_lower, mapping.gpu_api.lower())
+                    if sim > 0.3:
+                        results.append(MappingResult(
+                            gpu_api=mapping.gpu_api,
+                            npu_api=mapping.npu_api,
+                            equivalence_level=mapping.equivalence_level,
+                            adaptation_notes=mapping.adaptation_notes,
+                            confidence=sim,
+                            source=mapping.source,
+                        ))
 
-        # 按相似度排序
-        results.sort(key=lambda x: x.confidence, reverse=True)
-        return results[:limit]
+                results.sort(key=lambda x: x.confidence, reverse=True)
+                return results[:limit]
+            except Exception as e:
+                logger.warning(f"Storage similarity search failed: {e}")
+
+        return []
 
     def find_by_category(
         self,
@@ -261,52 +305,92 @@ class MapperEngine:
             该类别的 MappingResult 列表
         """
         gpu_platform = self._normalize_platform(platform)
-        mappings = self._get_platform_mappings(gpu_platform)
 
-        results = []
-        for gpu_api, info in mappings.items():
-            # 根据 API 名称推断类别
-            if category == "sync" and any(s in gpu_api.lower() for s in ["sync", "fence", "shuffle"]):
-                results.append(MappingResult(
-                    gpu_api=gpu_api,
-                    npu_api=info["npu_api"],
-                    equivalence_level=info["equivalence"],
-                    adaptation_notes=info.get("notes", ""),
-                    source="predefined",
-                ))
-            elif category == "atomic" and "atomic" in gpu_api.lower():
-                results.append(MappingResult(
-                    gpu_api=gpu_api,
-                    npu_api=info["npu_api"],
-                    equivalence_level=info["equivalence"],
-                    adaptation_notes=info.get("notes", ""),
-                    source="predefined",
-                ))
+        # 如果有存储，从存储查询
+        if self._storage:
+            try:
+                # 查询该平台的所有映射
+                mappings = self._storage.search_cross_platform_mappings(
+                    query=category,
+                    platform=gpu_platform,
+                    min_confidence=0.0,
+                    limit=100,
+                )
 
-        return results
+                results = []
+                for mapping in mappings:
+                    # 根据 API 名称推断类别
+                    api_lower = mapping.gpu_api.lower()
+                    if category == "sync" and any(s in api_lower for s in ["sync", "fence", "shuffle"]):
+                        results.append(MappingResult(
+                            gpu_api=mapping.gpu_api,
+                            npu_api=mapping.npu_api,
+                            equivalence_level=mapping.equivalence_level,
+                            adaptation_notes=mapping.adaptation_notes,
+                            source=mapping.source,
+                        ))
+                    elif category == "atomic" and "atomic" in api_lower:
+                        results.append(MappingResult(
+                            gpu_api=mapping.gpu_api,
+                            npu_api=mapping.npu_api,
+                            equivalence_level=mapping.equivalence_level,
+                            adaptation_notes=mapping.adaptation_notes,
+                            source=mapping.source,
+                        ))
+
+                return results
+            except Exception as e:
+                logger.warning(f"Storage category search failed: {e}")
+
+        return []
 
     def get_supported_apis(self, platform: str = "cuda") -> List[str]:
         """获取支持的 GPU API 列表"""
         gpu_platform = self._normalize_platform(platform)
-        mappings = self._get_platform_mappings(gpu_platform)
-        return list(mappings.keys())
+
+        if self._storage:
+            try:
+                mappings = self._storage.search_cross_platform_mappings(
+                    query="",
+                    platform=gpu_platform,
+                    min_confidence=0.0,
+                    limit=1000,
+                )
+                return list(set(m.gpu_api for m in mappings))
+            except Exception as e:
+                logger.warning(f"Storage get_supported_apis failed: {e}")
+
+        return []
 
     def get_mapping_stats(self) -> Dict[str, Any]:
         """获取映射统计信息"""
-        return {
-            "total_cuda_mappings": len(CUDA_MAPPINGS),
-            "total_cutlass_mappings": len(CUTLASS_MAPPINGS),
-            "total_cublas_mappings": len(CUBLAS_MAPPINGS),
-            "exact_mappings": sum(
-                1 for m in CUDA_MAPPINGS.values()
-                if m["equivalence"] == MappingEquivalenceLevel.EXACT
-            ),
-            "similar_mappings": sum(
-                1 for m in CUDA_MAPPINGS.values()
-                if m["equivalence"] == MappingEquivalenceLevel.SIMILAR
-            ),
+        stats = {
             "cached_mappings": len(self._cache),
+            "storage_available": self._storage is not None,
         }
+
+        if self._storage:
+            try:
+                # 统计各平台映射数量
+                for platform in [GPUPlatform.CUDA, GPUPlatform.CUTLASS, GPUPlatform.CUBLAS]:
+                    mappings = self._storage.search_cross_platform_mappings(
+                        query="",
+                        platform=platform,
+                        min_confidence=0.0,
+                        limit=10000,
+                    )
+                    platform_key = f"total_{platform.value}_mappings"
+                    stats[platform_key] = len(mappings)
+                    stats[f"exact_{platform.value}_mappings"] = sum(
+                        1 for m in mappings if m.equivalence_level == MappingEquivalenceLevel.EXACT
+                    )
+                    stats[f"similar_{platform.value}_mappings"] = sum(
+                        1 for m in mappings if m.equivalence_level == MappingEquivalenceLevel.SIMILAR
+                    )
+            except Exception as e:
+                logger.warning(f"Storage stats query failed: {e}")
+
+        return stats
 
     def _normalize_platform(self, platform: str) -> GPUPlatform:
         """标准化平台名称"""
@@ -320,16 +404,6 @@ class MapperEngine:
         elif platform == "cudnn":
             return GPUPlatform.CUDNN
         return GPUPlatform.CUDA
-
-    def _get_platform_mappings(self, platform: GPUPlatform) -> Dict:
-        """获取平台的映射表"""
-        if platform == GPUPlatform.CUDA:
-            return CUDA_MAPPINGS
-        elif platform == GPUPlatform.CUTLASS:
-            return CUTLASS_MAPPINGS
-        elif platform == GPUPlatform.CUBLAS:
-            return CUBLAS_MAPPINGS
-        return {}
 
     def _calculate_similarity(self, api1: str, api2: str) -> float:
         """
