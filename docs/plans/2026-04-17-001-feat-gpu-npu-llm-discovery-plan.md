@@ -11,7 +11,7 @@ deepened: 2026-04-17
 
 ## Overview
 
-引入 LLM 自动分析能力，从 GPU 算子仓和 NPU 算子仓中发现实现级等价关系，提取可迁移的优化知识，并持久化到向量库。删除对 `predefined_mappings.py` 的静态依赖。
+引入 LLM 自动分析能力，从 GPU 算子仓和 NPU 算子仓中发现实现级等价关系，提取可迁移的优化知识，并持久化到向量库。已删除 `predefined_mappings.py` 的静态依赖，所有映射通过 LLM 分析获取。
 
 ## Problem Frame
 
@@ -35,7 +35,7 @@ deepened: 2026-04-17
 - 手动触发 + dry-run 预览
 - 新增独立 ChromaDB collection (`cross_platform_mappings`)
 - Redis 元数据存储
-- 删除 `predefined_mappings.py` 静态映射依赖
+- 删除 `predefined_mappings.py` 静态映射依赖 ✅ 已完成
 
 **Out of Scope:**
 - Webhook 自动触发
@@ -44,7 +44,7 @@ deepened: 2026-04-17
 
 ## Key Technical Decisions
 
-- **纯向量库存储**: 所有映射均来自代码仓 LLM 分析，存入 ChromaDB + Redis，不再依赖 `predefined_mappings.py`
+- **纯向量库存储**: 所有映射均来自代码仓 LLM 分析，存入 ChromaDB + Redis，不再依赖 `predefined_mappings.py` ✅ 已完成
 - **置信度分流**: 分析结果按置信度分流存储，全部写入向量库，≥0.8 标记为高置信度供主查询使用
 - **复用现有组件**: 扩展 `GPUStorage`、`MapperEngine`，而非新建平行模块
 
@@ -199,7 +199,7 @@ deepened: 2026-04-17
 - 低置信度 (<0.8) 映射：source='llm_suggested'，供人工审核后晋升
 - 冲突策略：同一 `gpu_api` 保留多条映射（置信度不同），按置信度排序，审核后可覆盖
 - **存储事务**: 先写 Redis 再写 ChromaDB，若 ChromaDB 写入失败则删除 Redis 条目作为补偿
-- 删除 `predefined_mappings.py` 中的静态映射（用户决定）
+- 已删除 `predefined_mappings.py` 中的静态映射（用户决定）✅ 已完成
 
 **Patterns to follow:**
 - 现有 `MapperEngine` 存储模式
@@ -216,7 +216,7 @@ deepened: 2026-04-17
 
 ## System-Wide Impact
 
-- **Interaction graph**: 新增 `analyze-mapping` CLI 命令；`MapperEngine` 需扩展支持查询 `cross_platform_mappings` collection；`predefined_mappings.py` 标记为废弃（待删除）
+- **Interaction graph**: 新增 `analyze-mapping` CLI 命令；`MapperEngine` 已扩展支持查询 `cross_platform_mappings` collection；`predefined_mappings.py` 已删除
 - **Error propagation**: LLM 调用失败应降级并报告错误（写入 stderr），不阻塞主流程；存储层失败应回滚并抛出异常
 - **Integration coverage**: CLI → GPUNPUAnalysisEngine → GPUStorage 的完整链路需端到端测试
 
@@ -230,8 +230,8 @@ deepened: 2026-04-17
   - **缓解**: 重试3次 (exponential backoff 1s/2s/4s)，仍失败则 confidence=0.0 存入向量库
 - **存储回滚**: ChromaDB + Redis 双存储可能失败
   - **缓解**: 先写 Redis 再写 ChromaDB，失败时删除 Redis 条目作为补偿
-- **与现有 MapperEngine 的迁移**: 删除 predefined_mappings.py 后需确保 cross_platform_mappings 可替代
-  - **缓解**: 先实现新存储，确认可用后再删除旧映射
+- **与现有 MapperEngine 的迁移**: predefined_mappings.py 已删除，MapperEngine 已改用 cross_platform_mappings
+  - **缓解**: 已完成迁移验证
 
 ## Documentation / Operational Notes
 
@@ -241,4 +241,4 @@ deepened: 2026-04-17
 
 - **Origin document:** [docs/brainstorms/2026-04-17-gpu-npu-llm-discovery-requirements.md](docs/brainstorms/2026-04-17-gpu-npu-llm-discovery-requirements.md)
 - Related code: `src/asc_ops/mapper/engine.py`, `src/asc_ops/gpu_collector/storage.py`, `src/asc_ops/storage/collections.py`
-- **重大变更**: 用户决策 - 删除 `predefined_mappings.py` 依赖，所有映射从代码仓 LLM 分析获取
+- **重大变更**: 用户决策 - 删除 `predefined_mappings.py` 依赖，所有映射从代码仓 LLM 分析获取 ✅ 已完成

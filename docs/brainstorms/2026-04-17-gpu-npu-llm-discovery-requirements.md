@@ -8,7 +8,7 @@
 
 ## Problem Frame
 
-当前预定义映射表（`predefined_mappings.py`）依赖人工维护，仅覆盖 45+ 基础 API 映射。用户希望引入 LLM 自动分析能力，从 GPU 算子仓（如 cuBLAS、CUTLASS）和 NPU 算子仓（AscendC）中发现**实现级等价关系**，并提取可迁移的优化知识。
+当前预定义映射表（`predefined_mappings.py`）依赖人工维护，仅覆盖 45+ 基础 API 映射。已改用 LLM 自动分析能力，从 GPU 算子仓（如 cuBLAS、CUTLASS）和 NPU 算子仓（AscendC）中发现**实现级等价关系**，并提取可迁移的优化知识。所有映射通过 LLM 分析获取，不再依赖预定义静态映射。
 
 这解决了两个核心问题：
 1. **映射发现问题**：GPU 上这个算子在 NPU 上对应哪个 API？
@@ -39,9 +39,9 @@
 - 输出：在 NPU 上的等效实现建议
 
 ### R4. 分析结果持久化
-- **预定义映射表**：分析结果追加到 `predefined_mappings.py`，覆盖或补充人工定义
-- **向量数据库**：分析结果存入 ChromaDB，支持语义检索（沿用现有架构）
-- 双存储保证：权威映射在代码中，语义检索在向量库
+- **向量数据库**：分析结果存入 ChromaDB + Redis，支持语义检索
+- **置信度分流**：≥0.8 标记为 `llm_high_conf`，<0.8 标记为 `llm_suggested`
+- ~~**预定义映射表**：分析结果追加到 `predefined_mappings.py`，覆盖或补充人工定义**~~ ✅ 已删除预定义映射
 
 ### R5. 手动触发机制
 - 用户显式触发分析任务
@@ -85,7 +85,7 @@
 ## Dependencies / Assumptions
 
 - 依赖现有 `gpu_collector` 模块的数据模型（`GPUKernelKnowledge`、`CrossPlatformMapping`）
-- 依赖现有 `predefined_mappings.py` 的映射存储结构
+- 依赖现有 `GPUStorage` 的 ChromaDB + Redis 双写存储
 - 假设 LLM 能有效理解 GPU 和 NPU 的代码语义差异
 
 ---

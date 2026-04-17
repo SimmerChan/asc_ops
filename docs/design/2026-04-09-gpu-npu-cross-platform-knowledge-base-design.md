@@ -3,7 +3,9 @@
 **文档版本**: v1.0
 **创建日期**: 2026-04-09
 **作者**: 首席架构师
-**状态**: 正式版
+**状态**: 已废弃 (被 LLM 驱动的新架构替代)
+
+> ⚠️ **架构变更通知**: 本设计方案描述的 `predefined_mappings.py` 静态映射已被删除。新架构使用 `GPUNPUAnalysisEngine` 通过 LLM 分析 GPU-NPU 代码对，直接存入 ChromaDB + Redis 向量库。详见 `docs/plans/2026-04-17-001-feat-gpu-npu-llm-discovery-plan.md`
 
 ---
 

@@ -254,14 +254,14 @@ flowchart LR
 
 **Files:**
 - Create: `src/asc_ops/mapper/engine.py`
-- Create: `src/asc_ops/mapper/predefined_mappings.py`
+- ~~Create: `src/asc_ops/mapper/predefined_mappings.py`~~ ✅ 已删除，改用向量库
 - Create: `src/asc_ops/mapper/__init__.py`
 - Create: `tests/unit/mapper/test_engine.py`
 
 **Approach:**
-- 预定义核心映射表 (如 `__syncthreads` → `SyncAll`)
+- ~~预定义核心映射表 (如 `__syncthreads` → `SyncAll`)~~ ✅ 已删除
 - LLM 增强: 未匹配 API 调用 LLM 生成映射建议
-- 映射存储到 Redis Set 便于快速查询
+- 映射存储到 ChromaDB + Redis 双写，便于向量检索
 - 支持 `query_cross_platform(gpu_api)` 接口
 
 **Patterns to follow:**
