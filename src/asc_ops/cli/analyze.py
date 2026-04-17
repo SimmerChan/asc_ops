@@ -32,17 +32,33 @@ def add_analyze_parser(subparsers) -> argparse.ArgumentParser:
         description="使用 LLM 分析 GPU 算子仓和 NPU 算子仓的代码对，发现等价关系",
     )
 
+    # 配置文件模式
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="对等仓库配置文件路径",
+    )
+
+    parser.add_argument(
+        "--name",
+        type=str,
+        default=None,
+        help="配置名称（从配置文件加载时使用）",
+    )
+
+    # 直接指定模式
     parser.add_argument(
         "--gpu-repo",
         type=str,
-        required=True,
+        default=None,
         help="GPU 仓本地路径",
     )
 
     parser.add_argument(
         "--npu-repo",
         type=str,
-        required=True,
+        default=None,
         help="NPU 仓本地路径",
     )
 
@@ -76,13 +92,6 @@ def add_analyze_parser(subparsers) -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--config",
-        type=str,
-        default="peer_repos.yaml",
-        help="对等仓库配置文件 (默认: peer_repos.yaml)",
-    )
-
-    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -90,6 +99,62 @@ def add_analyze_parser(subparsers) -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def resolve_analysis_config(args) -> dict:
+    """
+    解析分析配置
+
+    支持两种模式:
+    1. 配置文件模式: --config peer_repos.yaml --name <配置名>
+    2. 直接指定模式: --gpu-repo <path> --npu-repo <path>
+
+    Args:
+        args: 解析后的命令行参数
+
+    Returns:
+        包含 gpu_repo, npu_repo, gpu_platform, analysis_paths 的字典
+    """
+    if args.config:
+        # 配置文件模式
+        from ..config import load_peer_repos_config
+
+        configs = load_peer_repos_config(args.config)
+        if not configs:
+            raise ValueError(f"配置文件为空或无效: {args.config}")
+
+        # 按名称筛选
+        if args.name:
+            matched = [c for c in configs if c.name == args.name]
+            if not matched:
+                raise ValueError(f"未找到配置名称: {args.name}")
+            config = matched[0]
+        elif len(configs) == 1:
+            config = configs[0]
+        else:
+            raise ValueError(
+                f"配置文件中有多个配置，请使用 --name 指定: {[c.name for c in configs]}"
+            )
+
+        return {
+            "gpu_repo": config.gpu_repo_path,
+            "npu_repo": config.npu_repo_path,
+            "gpu_platform": config.gpu_platform,
+            "analysis_paths": config.analysis_paths,
+            "config_name": config.name,
+        }
+    else:
+        # 直接指定模式
+        if not args.gpu_repo or not args.npu_repo:
+            raise ValueError("--gpu-repo 和 --npu-repo 是必需参数（除非使用 --config）")
+
+        return {
+            "gpu_repo": args.gpu_repo,
+            "npu_repo": args.npu_repo,
+            "gpu_platform": args.gpu_platform,
+            "analysis_paths": args.analysis_paths,
+            "config_name": None,
+        }
 
 
 def discover_file_pairs(
@@ -160,8 +225,13 @@ async def run_analyze_mapping(args) -> int:
         logging.basicConfig(level=logging.INFO)
 
     try:
-        gpu_repo = Path(args.gpu_repo)
-        npu_repo = Path(args.npu_repo)
+        # 解析配置
+        config = resolve_analysis_config(args)
+        gpu_repo = Path(config["gpu_repo"])
+        npu_repo = Path(config["npu_repo"])
+        gpu_platform_str = config["gpu_platform"]
+        analysis_paths = config["analysis_paths"]
+        config_name = config["config_name"]
 
         # 验证路径
         if not gpu_repo.exists():
@@ -178,25 +248,26 @@ async def run_analyze_mapping(args) -> int:
             "cublas": GPUPlatform.CUBLAS,
             "cudnn": GPUPlatform.CUDNN,
         }
-        gpu_platform = gpu_platform_map.get(args.gpu_platform, GPUPlatform.CUDA)
+        gpu_platform = gpu_platform_map.get(gpu_platform_str, GPUPlatform.CUDA)
 
         # 发现文件对
         print("\n" + "=" * 50)
         print("  GPU-NPU 等价分析工具")
         print("=" * 50)
 
-        print(f"\n分析配置:")
+        config_desc = f" ({config_name})" if config_name else ""
+        print(f"\n分析配置{config_desc}:")
         print(f"  - GPU 仓: {gpu_repo}")
         print(f"  - NPU 仓: {npu_repo}")
-        print(f"  - GPU 平台: {args.gpu_platform}")
-        print(f"  - 分析路径: {args.analysis_paths or '全部'}")
+        print(f"  - GPU 平台: {gpu_platform_str}")
+        print(f"  - 分析路径: {analysis_paths or '全部'}")
         print(f"  - 模式: {'dry-run' if args.dry_run else '持久化'}")
 
         # 发现文件对
         file_pairs = discover_file_pairs(
             gpu_repo,
             npu_repo,
-            args.analysis_paths,
+            analysis_paths,
         )
 
         if not file_pairs:
