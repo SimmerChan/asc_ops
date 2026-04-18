@@ -3,8 +3,9 @@
 ---
 title: feat: GPU-NPU LLM Discovery
 type: feat
-status: active
+status: completed
 date: 2026-04-17
+completed: 2026-04-18
 origin: docs/brainstorms/2026-04-17-gpu-npu-llm-discovery-requirements.md
 deepened: 2026-04-17
 ---
@@ -30,11 +31,12 @@ deepened: 2026-04-17
 ## Scope Boundaries
 
 **In Scope:**
-- 算子级和实现级等价分析
-- 简单配置（仓路径 + 平台类型）
-- 手动触发 + dry-run 预览
-- 新增独立 ChromaDB collection (`cross_platform_mappings`)
-- Redis 元数据存储
+- 算子级和实现级等价分析 ✅
+- 原子级 API 等价分析 ✅
+- 简单配置（仓路径 + 平台类型） ✅
+- 手动触发 + dry-run 预览 ✅
+- 新增独立 ChromaDB collection (`cross_platform_mappings`) ✅
+- Redis 元数据存储 ✅
 - 删除 `predefined_mappings.py` 静态映射依赖 ✅ 已完成
 
 **Out of Scope:**
@@ -57,7 +59,7 @@ deepened: 2026-04-17
 
 ## Implementation Units
 
-- [ ] **Unit 1: 存储层扩展**
+- [x] **Unit 1: 存储层扩展** ✅
 
 **Goal:** 扩展 ChromaDB collection 和 Redis keys 支持跨平台映射
 
@@ -80,16 +82,16 @@ deepened: 2026-04-17
 - `CollectionType` 现有枚举模式
 
 **Test scenarios:**
-- 新增 collection 配置正确
-- 映射存储和查询正确
+- 新增 collection 配置正确 ✅
+- 映射存储和查询正确 ✅
 
 **Verification:**
-- `GPUStorage` 能存储和查询 `CrossPlatformMapping`
-- ChromaDB collection 存在且可写入
+- `GPUStorage` 能存储和查询 `CrossPlatformMapping` ✅
+- ChromaDB collection 存在且可写入 ✅
 
 ---
 
-- [ ] **Unit 2: 配置层扩展**
+- [x] **Unit 2: 配置层扩展** ✅
 
 **Goal:** 支持对等仓库配置
 
@@ -99,7 +101,7 @@ deepened: 2026-04-17
 
 **Files:**
 - Modify: `src/asc_ops/config.py` — 新增 `PeerRepoConfig` 和相关配置
-- Modify: `repos.yaml` 或新增 `peer_repos.yaml` — 对等仓库配置示例
+- Modify: `peer_repos.yaml` — 对等仓库配置示例
 
 **Approach:**
 - 新增 `PeerRepoConfig` dataclass：`gpu_repo_path`、`npu_repo_path`、`gpu_platform`、`analysis_paths`（用户指定）
@@ -109,15 +111,15 @@ deepened: 2026-04-17
 - `ChromaDBConfig` 等现有配置类的 Pydantic 模式
 
 **Test scenarios:**
-- 配置正确解析
-- 多组配置支持
+- 配置正确解析 ✅
+- 多组配置支持 ✅
 
 **Verification:**
-- `PeerRepoConfig` 能正确加载 YAML 配置
+- `PeerRepoConfig` 能正确加载 YAML 配置 ✅
 
 ---
 
-- [ ] **Unit 3: LLM 分析引擎**
+- [x] **Unit 3: LLM 分析引擎** ✅
 
 **Goal:** 实现 GPU→NPU 等价分析核心逻辑
 
@@ -135,23 +137,24 @@ deepened: 2026-04-17
   1. 角色定义: "You are an expert in GPU and Huawei Ascend NPU cross-platform optimization..."
   2. 输入区块: 分别以 ` ```cuda ` 和 ` ```cpp ` 标记 GPU/NPU 代码段，附带元数据如函数签名、shared memory 使用等
   3. 输出规格: JSON 字段 `equivalence_level` (exact/similar/conceptual)、`npu_equivalent`（函数名）、`confidence` (0.0-1.0)、`adaptation_notes`、`optimization_hints` (数据分块/shared memory/TensorCore/无)
-- temperature=0.1，max_tokens=512
+- temperature=0.1，max_tokens=2048 (支持 MiniMax thinking blocks)
 - **JSON 解析失败处理**: 重试3次 (exponential backoff 1s/2s/4s)，仍失败则 confidence=0.0，标记 `parsing_failed=true`，存入向量库供人工审核
+- **Markdown JSON 提取**: LLM 可能返回 ```json ... ``` 格式，增加正则提取逻辑
 - Token 预算控制: 单次调用最多 N 个文件对（默认50），每个文件对最多 M tokens（默认2000）
 
 **Patterns to follow:**
 - `MapperEngine._generate_llm_mapping` 的 LLM 调用封装模式（但需独立实现文件对分析）
 
 **Test scenarios:**
-- 给定 GPU/NPU 代码对，输出有效映射
-- 空输入或无效输入正确处理
+- 给定 GPU/NPU 代码对，输出有效映射 ✅
+- 空输入或无效输入正确处理 ✅
 
 **Verification:**
-- `GPUNPUAnalysisEngine` 能处理代码对并返回结构化结果
+- `GPUNPUAnalysisEngine` 能处理代码对并返回结构化结果 ✅
 
 ---
 
-- [ ] **Unit 4: CLI 集成**
+- [x] **Unit 4: CLI 集成** ✅
 
 **Goal:** 提供命令行触发接口
 
@@ -164,25 +167,27 @@ deepened: 2026-04-17
 - Modify: `src/asc_ops/cli/__init__.py` — 注册子命令
 
 **Approach:**
-- `asc-ops analyze-mapping --gpu-repo <path> --npu-repo <path> [--dry-run] [--output <file>]`
-- dry-run 模式：只输出分析结果，不持久化
+- `asc-ops analyze-mapping --config <yaml> --name <config_name>` 或 `--gpu-repo <path> --npu-repo <path>`
+- `--dry-run` 模式：只输出分析结果，不持久化
+- `--output <file>` 输出结果到 JSON 文件
+- `--atomic` 原子级分析模式（见下方原子化扩展）
 - 正常模式：按置信度分流存储
 
 **Patterns to follow:**
 - `sync.py`、`collect.py` 等现有 CLI 子命令模式
 
 **Test scenarios:**
-- 正确解析参数
-- dry-run 模式输出结果但不写入
-- 正常模式正确分流存储
+- 正确解析参数 ✅
+- dry-run 模式输出结果但不写入 ✅
+- 正常模式正确分流存储 ✅
 
 **Verification:**
-- CLI 命令可执行
-- 参数验证正确
+- CLI 命令可执行 ✅
+- 参数验证正确 ✅
 
 ---
 
-- [ ] **Unit 5: 持久化逻辑**
+- [x] **Unit 5: 持久化逻辑** ✅
 
 **Goal:** 实现纯向量库存储逻辑
 
@@ -205,12 +210,65 @@ deepened: 2026-04-17
 - 现有 `MapperEngine` 存储模式
 
 **Test scenarios:**
-- 高置信度映射正确写入向量库 (source='llm_high_conf')
-- 低置信度映射正确存入向量库 (source='llm_suggested')
-- 存储失败时 Redis 回滚正确执行
+- 高置信度映射正确写入向量库 (source='llm_high_conf') ✅
+- 低置信度映射正确存入向量库 (source='llm_suggested') ✅
+- 存储失败时 Redis 回滚正确执行 ✅
 
 **Verification:**
-- 存储后查询能返回结果
+- 存储后查询能返回结果 ✅
+
+---
+
+## 原子化映射扩展 ✅
+
+**Goal:** 将分析粒度从文件级细化到原子 API 调用级
+
+**Status:** ✅ 已完成 (2026-04-18)
+
+**Problem:**
+- 文件级分析只能发现"整个文件的等价"，无法发现文件内具体 CUDA/CUB 库函数的 NPU 等效
+- Agent 搜索 GPU 迁移知识时，只能搜索到文件级映射，不能搜索到具体 API 映射
+
+**Solution:**
+从 GPU/NPU 代码文件中提取原子 API 调用，对每个 API pair 单独进行 GPU→NPU 映射分析。
+
+**Files:**
+- Create: `src/asc_ops/mapper/atomic_parser.py` — `AtomicCodeParser` 原子 API 提取器
+- Modify: `src/asc_ops/mapper/llm_analyzer.py` — 新增 `analyze_file_pair_atomic()` 方法
+- Modify: `src/asc_ops/cli/analyze.py` — 新增 `--atomic` CLI 参数
+
+**GPU API 模式覆盖:**
+- CUDA: `cudaMalloc`, `cudaMemcpy`, `cudaFree`, `cudaStreamSync`, `atomicAdd`
+- CUB: `cub::BlockScan`, `cub::DeviceScan`, `cub::DeviceReduce`, `cub::DeviceRadixSort`
+- CUTLASS: `cutlass::*`, `cutlass_gemm`
+- WMMA: `wmma::load_matrix_sync`, `wmma::store_matrix_sync`, `wmma::mma_sync`
+
+**NPU API 模式覆盖:**
+- ACLNN: `aclnnMatmul`, `aclnnConv2d`, `aclnnAdd`, `aclnnRelu`, `aclnnSoftmax`
+- AscendC: `Load2D`, `Store2D`, `Matmul`, `SyncAll`, `LocalTensor`
+- 异步: `EXEC_NPU_CMD(aclnn...)`
+
+**原子分析 Prompt:**
+```
+分析以下原子 API 对的等价关系：
+GPU API: cub::BlockScan
+NPU API: asynchronous_complete_cumsum_npu
+代码片段: [提取的代码上下文]
+
+输出 JSON: {"is_equivalent": true/false, "npu_equivalent": "API名",
+ "equivalence_level": "exact/similar/conceptual", "confidence": 0.0-1.0,
+ "adaptation_notes": "..."}
+```
+
+**Example 映射结果:**
+- `cub::BlockScan` → `async_cumsum_npu`
+- `atomicAdd` → `atomic_add`
+- `__syncthreads` → `SyncAll`
+- `wmma::mma_sync` → `Matmul` (Tensor Core)
+
+**验证:**
+- MCP 工具 `query_cross_platform` 可查询原子映射 ✅
+- E2E 测试验证 `__syncthreads` → `SyncAll` 映射查询 ✅
 
 ---
 
