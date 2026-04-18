@@ -37,13 +37,18 @@ AscendC Operator Knowledge Base (asc_ops) 是一个面向Coding Agent的昇腾As
 
 实际测试表明：使用 MCP 知识库查询 vs 无知识库搜索，LLM 回答质量差异显著：
 
-| 指标 | 无 MCP | 有 MCP |
+| 场景 | 无 MCP | 有 MCP |
 |------|--------|--------|
-| API 推荐 | `aclnnGather` (猜测) | `aclnnInvertPermute` (精确) |
-| 置信度 | 低 | **0.98 (exact)** |
-| 等价级别 | 未知 | 已验证 |
+| GPU→NPU 映射 | `aclnnGather` (猜测) | `aclnnInvertPermute` (0.98, exact) |
+| CUB BlockScan | 需试错 | `aclnnAsynchronousCompleteCumsum` (0.95) |
+| Bug 根因 | 猜测可能原因 | 精确定位 SocVersion→NpuArch |
+| API 概念 | 可能混淆 | 权威解释 TPosition/LocalTensor |
 
-详见 [使用案例](docs/use_cases/)
+详见 [使用案例](docs/use_cases/):
+- [Sparse Ops 迁移](docs/use_cases/case-study-gpu-to-npu-migration.md)
+- [CUB BlockScan 迁移](docs/use_cases/usecase-gpu-npu-block-scan-migration.md)
+- [Matmul Bug 查询](docs/use_cases/usecase-bug-knowledge-matmul.md)
+- [API 知识查询](docs/use_cases/usecase-api-knowledge-tensor.md)
 
 ---
 
