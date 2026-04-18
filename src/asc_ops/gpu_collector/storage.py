@@ -44,8 +44,8 @@ class GPUStorage:
         初始化 GPU 存储
 
         Args:
-            chroma_client: ChromaDB 客户端 (None 时使用 mock)
-            redis_client: Redis 客户端 (None 时使用 mock)
+            chroma_client: ChromaDB 客户端 (None 时自动从环境初始化)
+            redis_client: Redis 客户端 (None 时自动从环境初始化)
             use_mock: 是否使用 mock 模式
         """
         self._chroma_client = chroma_client
@@ -61,7 +61,44 @@ class GPUStorage:
         if use_mock:
             logger.info("GPU Storage initialized in mock mode")
         else:
+            self._auto_init_clients()
             self._init_collections()
+
+    def _auto_init_clients(self):
+        """自动从环境变量初始化 ChromaDB 和 Redis 客户端"""
+        # 初始化 ChromaDB
+        if self._chroma_client is None:
+            try:
+                import chromadb
+                import os
+                chroma_path = os.environ.get("CHROMA_DB_PATH", "./data/chroma_db")
+                self._chroma_client = chromadb.PersistentClient(path=chroma_path)
+                logger.info(f"ChromaDB client initialized: {chroma_path}")
+            except Exception as e:
+                logger.warning(f"Failed to initialize ChromaDB client: {e}")
+
+        # 初始化 Redis
+        if self._redis_client is None:
+            try:
+                import redis
+                redis_host = os.environ.get("REDIS_HOST", "localhost")
+                redis_port = int(os.environ.get("REDIS_PORT", "6379"))
+                redis_db = int(os.environ.get("REDIS_DB", "0"))
+                redis_password = os.environ.get("REDIS_PASSWORD", None)
+
+                self._redis_client = redis.Redis(
+                    host=redis_host,
+                    port=redis_port,
+                    db=redis_db,
+                    password=redis_password if redis_password else None,
+                    decode_responses=True,
+                )
+                # 测试连接
+                self._redis_client.ping()
+                logger.info(f"Redis client initialized: {redis_host}:{redis_port}")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Redis client: {e}")
+                self._redis_client = None
 
     def _init_collections(self):
         """初始化 ChromaDB collections"""
@@ -333,8 +370,14 @@ class GPUStorage:
                 n_results=limit,
             )
             if chroma_results and chroma_results["ids"]:
-                for i, mid in enumerate(chroma_results["ids"]):
-                    metadata = chroma_results["metadatas"][i]
+                # ChromaDB returns list of lists: [[id1, id2], [id3, id4]] for 2 query_texts
+                # We only queried with one query_text, so we get one inner list
+                ids_list = chroma_results["ids"][0] if chroma_results["ids"] else []
+                metadatas_list = chroma_results["metadatas"][0] if chroma_results["metadatas"] else []
+                documents_list = chroma_results["documents"][0] if chroma_results["documents"] else []
+
+                for i, mid in enumerate(ids_list):
+                    metadata = metadatas_list[i]
                     confidence = float(metadata.get("confidence", 0.0))
                     if confidence < min_confidence:
                         continue

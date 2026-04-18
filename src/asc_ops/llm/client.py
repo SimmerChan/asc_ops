@@ -8,6 +8,7 @@ Unified LLM Client
 """
 
 import logging
+import os
 from typing import List, Optional, AsyncIterator
 
 from .base import LLMProvider
@@ -62,8 +63,8 @@ class UnifiedLLMClient:
 
         self._provider: Optional[LLMProvider] = None
         self._provider_class = _PROVIDER_CLASSES[self._provider_name]
-        self._api_key = api_key
-        self._api_base = api_base
+        self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        self._api_base = api_base or os.environ.get("ANTHROPIC_API_BASE", "")
         self._timeout = timeout
         self._provider_kwargs = provider_kwargs
 

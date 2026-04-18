@@ -158,10 +158,15 @@ class AnthropicProvider(LLMProvider):
 
             # 解析响应
             # Anthropic 响应格式: {"content": [{"type": "text", "text": "..."}]}
+            # MiniMax 可能返回 thinking blocks，需要提取 text 类型内容
             content_text = ""
             if raw.get("content"):
                 for block in raw["content"]:
+                    # 提取 text 类型内容
                     if block.get("type") == "text":
+                        content_text += block.get("text", "")
+                    # MiniMax thinking 块中可能包含 text
+                    elif block.get("type") == "thinking" and block.get("text"):
                         content_text += block.get("text", "")
 
             usage = LLMUsage.from_dict(raw.get("usage", {}), "anthropic")

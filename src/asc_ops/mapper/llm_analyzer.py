@@ -10,6 +10,7 @@ GPU-NPU 等价分析引擎
 import logging
 import asyncio
 import json
+import re
 import uuid
 import time
 from dataclasses import dataclass, field
@@ -22,6 +23,7 @@ from ..gpu_collector.models import (
     MappingEquivalenceLevel,
 )
 from ..gpu_collector.storage import GPUStorage
+from .atomic_parser import AtomicCodeParser, AtomicAPICall
 
 if TYPE_CHECKING:
     from ..llm import UnifiedLLMClient
@@ -246,6 +248,161 @@ class GPUNPUAnalysisEngine:
 
         return results
 
+    async def analyze_file_pair_atomic(
+        self,
+        gpu_file: Path,
+        npu_file: Path,
+        gpu_platform: GPUPlatform = GPUPlatform.CUDA,
+    ) -> List[FilePairAnalysis]:
+        """
+        原子级分析：提取文件中的原子 API 调用，对每个 API pair 单独进行 GPU→NPU 映射分析
+
+        Args:
+            gpu_file: GPU 代码文件路径
+            npu_file: NPU 代码文件路径
+            gpu_platform: GPU 平台类型
+
+        Returns:
+            FilePairAnalysis 结果列表（每个原子 API pair 一个结果）
+        """
+        try:
+            # 读取文件内容
+            gpu_code = gpu_file.read_text(encoding="utf-8")
+            npu_code = npu_file.read_text(encoding="utf-8")
+
+            # 提取原子 API
+            gpu_apis = AtomicCodeParser.extract_gpu_apis(gpu_code)
+            npu_apis = AtomicCodeParser.extract_npu_apis(npu_code)
+
+            if not gpu_apis:
+                logger.warning(f"No GPU APIs extracted from {gpu_file}")
+                return []
+
+            if not npu_apis:
+                logger.warning(f"No NPU APIs extracted from {npu_file}")
+                return []
+
+            # 创建 API pairs
+            api_pairs = AtomicCodeParser.create_api_pairs(gpu_apis, npu_apis)
+
+            if not api_pairs:
+                logger.warning(f"No API pairs created for {gpu_file} - {npu_file}")
+                return []
+
+            logger.info(f"Created {len(api_pairs)} API pairs from {gpu_file.name}")
+
+            # 对每个 pair 进行 LLM 分析
+            results = []
+            for gpu_api, npu_api in api_pairs:
+                result = await self._analyze_atomic_pair(
+                    gpu_api=gpu_api,
+                    npu_api=npu_api,
+                    gpu_platform=gpu_platform,
+                    gpu_file=str(gpu_file),
+                    npu_file=str(npu_file),
+                )
+                results.append(result)
+
+                # 控制请求速率
+                await asyncio.sleep(0.1)
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Failed atomic analysis for {gpu_file} - {npu_file}: {e}")
+            return []
+
+    async def _analyze_atomic_pair(
+        self,
+        gpu_api: AtomicAPICall,
+        npu_api: AtomicAPICall,
+        gpu_platform: GPUPlatform,
+        gpu_file: str,
+        npu_file: str,
+    ) -> FilePairAnalysis:
+        """分析单个原子 API pair"""
+
+        # 构建原子分析 prompt
+        prompt = self._build_atomic_analysis_prompt(
+            gpu_api_name=gpu_api.api_name,
+            gpu_api_type=gpu_api.api_type,
+            gpu_context=gpu_api.context,
+            npu_api_name=npu_api.api_name,
+            npu_api_type=npu_api.api_type,
+            npu_context=npu_api.context,
+            gpu_platform=gpu_platform,
+        )
+
+        # 调用 LLM
+        result = await self._call_llm_with_retry(prompt)
+
+        return FilePairAnalysis(
+            gpu_file=gpu_file,
+            npu_file=npu_file,
+            gpu_api=gpu_api.api_name,
+            result=result,
+            gpu_platform=gpu_platform,
+            parsing_failed=result.parsing_failed,
+        )
+
+    def _build_atomic_analysis_prompt(
+        self,
+        gpu_api_name: str,
+        gpu_api_type: str,
+        gpu_context: str,
+        npu_api_name: str,
+        npu_api_type: str,
+        npu_context: str,
+        gpu_platform: GPUPlatform,
+    ) -> str:
+        """构建原子级分析 prompt"""
+
+        prompt = f"""You are an expert in GPU (CUDA/CUB) to Huawei AscendC NPU cross-platform optimization.
+
+Analyze the following GPU and NPU API pair to determine their functional equivalence.
+
+## GPU API
+- API Name: {gpu_api_name}
+- Type: {gpu_api_type}
+- Code Context:
+```{gpu_platform.value}
+{gpu_context}
+```
+
+## NPU API
+- API Name: {npu_api_name}
+- Type: {npu_api_type}
+- Code Context:
+```cpp
+{npu_context}
+```
+
+## Analysis Task
+
+Determine:
+1. Are these two APIs implementing the same operation?
+2. What is the exact NPU equivalent API name?
+3. What adaptation is needed to migrate from GPU to NPU?
+
+## Output Format
+
+Respond with a JSON object:
+{{
+    "is_equivalent": true/false,
+    "npu_equivalent": "API name" or "N/A",
+    "equivalence_level": "exact|similar|conceptual",
+    "confidence": 0.0-1.0,
+    "adaptation_notes": "Brief notes on differences",
+    "optimization_hints": "tiling|shared_memory|tensor_core|none"
+}}
+
+Rules:
+- npu_equivalent: The main AscendC API name that provides equivalent functionality
+- equivalence_level: exact (direct replacement), similar (with parameter changes), conceptual (same idea)
+- If no equivalent exists, set is_equivalent=false and npu_equivalent="N/A"
+"""
+        return prompt
+
     def _infer_gpu_api(self, code: str, filename: str) -> str:
         """从文件名或代码内容推断 GPU API 名称"""
         # 从文件名推断
@@ -305,12 +462,18 @@ class GPUNPUAnalysisEngine:
             try:
                 response = await self._llm_client.chat(
                     messages=messages,
-                    max_tokens=512,
+                    max_tokens=2048,  # 需要足够空间给 thinking + text
                     temperature=self._temperature,
                 )
 
-                # 解析 JSON
-                data = json.loads(response.content)
+                # 解析 JSON - LLM 可能返回 markdown 格式
+                raw_content = response.content
+                if raw_content.startswith("```"):
+                    # 提取 markdown 中的 JSON
+                    json_match = re.search(r'\{[\s\S]*\}', raw_content)
+                    if json_match:
+                        raw_content = json_match.group()
+                data = json.loads(raw_content)
                 return self._parse_analysis_result(data)
 
             except json.JSONDecodeError as e:
@@ -359,7 +522,20 @@ class GPUNPUAnalysisEngine:
         )
 
     def _parse_analysis_result(self, data: Dict[str, Any]) -> AnalysisResult:
-        """解析 LLM 返回的 JSON 结果"""
+        """解析 LLM 返回的 JSON 结果
+
+        LLM 可能返回 markdown 格式的 JSON (```json ... ```)，需要先提取
+        """
+        # 如果 data 不是 dict 类型（可能是字符串形式的 JSON），先尝试解析
+        if isinstance(data, str):
+            # 尝试从 markdown 代码块中提取 JSON
+            json_match = re.search(r'\{[\s\S]*\}', data)
+            if json_match:
+                try:
+                    data = json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    pass
+
         is_equivalent = data.get("is_equivalent", False)
         npu_equivalent = data.get("npu_equivalent", "N/A")
 

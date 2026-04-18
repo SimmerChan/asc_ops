@@ -15,11 +15,15 @@ import json
 from pathlib import Path
 from typing import List, Tuple
 
-from ..mapper.llm_analyzer import GPUNPUAnalysisEngine
+from ..mapper.llm_analyzer import GPUNPUAnalysisEngine, FilePairAnalysis, AnalysisResult
 from ..gpu_collector.storage import GPUStorage
-from ..gpu_collector.models import GPUPlatform
+from ..gpu_collector.models import GPUPlatform, MappingEquivalenceLevel
 from ..llm.client import UnifiedLLMClient
 from ..config import load_peer_repos_config, PeerRepoConfig
+
+# 加载 .env 环境变量
+from dotenv import load_dotenv
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +100,12 @@ def add_analyze_parser(subparsers) -> argparse.ArgumentParser:
         "-v",
         action="store_true",
         help="详细输出",
+    )
+
+    parser.add_argument(
+        "--atomic",
+        action="store_true",
+        help="原子级分析：提取并分析文件中的每个 API 调用（而非整个文件）",
     )
 
     return parser
@@ -186,9 +196,46 @@ def discover_file_pairs(
             # 如果是文件，直接配对
             if gpu_path.is_file() and npu_path.is_file():
                 pairs.append((gpu_path, npu_path))
+                continue
+
             # 如果是目录，递归查找配对的源文件
-            elif gpu_path.is_dir() and npu_path.is_dir():
+            if gpu_path.is_dir() and npu_path.is_dir():
                 pairs.extend(_discover_pairs_in_dir(gpu_path, npu_path))
+                continue
+
+            # 处理目录前缀差异的情况
+            # 例如 GPU: fbgemm_gpu/src/sparse_ops, NPU: src/sparse_ops
+            path_str = str(path)
+            if "/" in path_str:
+                # 尝试多种路径组合
+                parts = path_str.split("/", 1)
+
+                if len(parts) == 2:
+                    # 情况1: GPU: fbgemm_gpu/src/xxx, NPU: src/xxx
+                    # 去掉 GPU 路径的第一个组件，尝试匹配 NPU 路径
+                    gpu_path_without_first = gpu_repo / parts[1]
+                    if gpu_path_without_first.is_dir() and npu_path.is_dir():
+                        pairs.extend(_discover_pairs_in_dir(gpu_path_without_first, npu_path))
+                        continue
+
+                    # 情况2: GPU: xxx, NPU: fbgemm_gpu/xxx (NPU 有额外的 fbgemm_gpu 前缀)
+                    gpu_path_with_fbgemm = gpu_repo / "fbgemm_gpu" / path_str
+                    if gpu_path_with_fbgemm.is_dir() and npu_path.is_dir():
+                        pairs.extend(_discover_pairs_in_dir(gpu_path_with_fbgemm, npu_path))
+                        continue
+
+                    # 情况3: NPU 路径本身不存在，尝试 NPU-repo/fbgemm_gpu/<path>
+                    if not npu_path.is_dir():
+                        npu_path_with_fbgemm = npu_repo / "fbgemm_gpu" / path_str
+                        if gpu_path.is_dir() and npu_path_with_fbgemm.is_dir():
+                            pairs.extend(_discover_pairs_in_dir(gpu_path, npu_path_with_fbgemm))
+                            continue
+
+                        # 情况4: 尝试 NPU: src/xxx (去掉 GPU 路径的第一个组件)
+                        npu_path_without_first = npu_repo / parts[1]
+                        if gpu_path.is_dir() and npu_path_without_first.is_dir():
+                            pairs.extend(_discover_pairs_in_dir(gpu_path, npu_path_without_first))
+                            continue
 
     return pairs
 
@@ -261,7 +308,10 @@ async def run_analyze_mapping(args) -> int:
         print(f"  - NPU 仓: {npu_repo}")
         print(f"  - GPU 平台: {gpu_platform_str}")
         print(f"  - 分析路径: {analysis_paths or '全部'}")
-        print(f"  - 模式: {'dry-run' if args.dry_run else '持久化'}")
+        mode_desc = "dry-run" if args.dry_run else "持久化"
+        if args.atomic:
+            mode_desc += " + 原子级"
+        print(f"  - 模式: {mode_desc}")
 
         # 发现文件对
         file_pairs = discover_file_pairs(
@@ -278,7 +328,7 @@ async def run_analyze_mapping(args) -> int:
 
         # 初始化 LLM 客户端和存储
         llm_client = UnifiedLLMClient()
-        storage = GPUStorage(use_mock=True)  # TODO: 使用实际存储
+        storage = GPUStorage(use_mock=False)
 
         # 创建分析引擎
         engine = GPUNPUAnalysisEngine(
@@ -289,46 +339,89 @@ async def run_analyze_mapping(args) -> int:
         # 执行分析
         print("\n开始分析...")
         results = []
-        for i, (gpu_file, npu_file) in enumerate(file_pairs):
-            print(f"  [{i+1}/{len(file_pairs)}] 分析: {gpu_file.name} <-> {npu_file.name}")
 
-            if args.dry_run:
-                # dry-run 模式：跳过 LLM 调用，只显示会分析哪些文件对
-                from ..mapper.llm_analyzer import FilePairAnalysis, AnalysisResult
-                from ..gpu_collector.models import MappingEquivalenceLevel
+        if args.atomic:
+            # 原子级分析模式
+            for i, (gpu_file, npu_file) in enumerate(file_pairs):
+                print(f"  [{i+1}/{len(file_pairs)}] 原子分析: {gpu_file.name}")
 
-                gpu_api = gpu_file.stem.upper()
-                if gpu_api.endswith("_KERNEL"):
-                    gpu_api = gpu_api.replace("_KERNEL", "")
-                if gpu_api.endswith("_OP"):
-                    gpu_api = gpu_api.replace("_OP", "")
+                if args.dry_run:
+                    # dry-run 模式：只显示会提取哪些 API
+                    from ..mapper.atomic_parser import AtomicCodeParser
+                    gpu_code = gpu_file.read_text(encoding="utf-8")
+                    npu_code = npu_file.read_text(encoding="utf-8")
+                    gpu_apis = AtomicCodeParser.extract_gpu_apis(gpu_code)
+                    npu_apis = AtomicCodeParser.extract_npu_apis(npu_code)
+                    pairs = AtomicCodeParser.create_api_pairs(gpu_apis, npu_apis)
+                    print(f"    [dry-run] GPU APIs: {[p[0].api_name for p in pairs]}")
+                    print(f"    [dry-run] NPU APIs: {[p[1].api_name for p in pairs]}")
+                    for gpu_api_call, npu_api_call in pairs:
+                        analysis = FilePairAnalysis(
+                            gpu_file=str(gpu_file),
+                            npu_file=str(npu_file),
+                            gpu_api=gpu_api_call.api_name,
+                            gpu_platform=gpu_platform,
+                            result=AnalysisResult(
+                                is_equivalent=False,
+                                npu_equivalent="N/A",
+                                equivalence_level=MappingEquivalenceLevel.CONCEPTUAL_ONLY,
+                                confidence=0.0,
+                                adaptation_notes="dry-run mode",
+                                optimization_hints="none",
+                            ),
+                            parsing_failed=False,
+                        )
+                        results.append(analysis)
+                else:
+                    # 实际分析
+                    atomic_results = await engine.analyze_file_pair_atomic(
+                        gpu_file=gpu_file,
+                        npu_file=npu_file,
+                        gpu_platform=gpu_platform,
+                    )
+                    for analysis in atomic_results:
+                        print(f"    -> {analysis.gpu_api} -> {analysis.result.npu_equivalent} "
+                              f"(置信度: {analysis.result.confidence:.2f})")
+                    results.extend(atomic_results)
+        else:
+            # 文件级分析模式（原有逻辑）
+            for i, (gpu_file, npu_file) in enumerate(file_pairs):
+                print(f"  [{i+1}/{len(file_pairs)}] 分析: {gpu_file.name} <-> {npu_file.name}")
 
-                analysis = FilePairAnalysis(
-                    gpu_file=str(gpu_file),
-                    npu_file=str(npu_file),
-                    gpu_api=gpu_api,
-                    gpu_platform=gpu_platform,
-                    result=AnalysisResult(
-                        is_equivalent=False,
-                        npu_equivalent="N/A",
-                        equivalence_level=MappingEquivalenceLevel.CONCEPTUAL_ONLY,
-                        confidence=0.0,
-                        adaptation_notes="dry-run mode",
-                        optimization_hints="none",
-                    ),
-                    parsing_failed=False,
-                )
-                print(f"    [dry-run] GPU API: {gpu_api}")
-            else:
-                analysis = await engine.analyze_file_pair(
-                    gpu_file=gpu_file,
-                    npu_file=npu_file,
-                    gpu_platform=gpu_platform,
-                )
-                print(f"    -> {analysis.gpu_api} -> {analysis.result.npu_equivalent} "
-                      f"(置信度: {analysis.result.confidence:.2f})")
+                if args.dry_run:
+                    # dry-run 模式：跳过 LLM 调用，只显示会分析哪些文件对
+                    gpu_api = gpu_file.stem.upper()
+                    if gpu_api.endswith("_KERNEL"):
+                        gpu_api = gpu_api.replace("_KERNEL", "")
+                    if gpu_api.endswith("_OP"):
+                        gpu_api = gpu_api.replace("_OP", "")
 
-            results.append(analysis)
+                    analysis = FilePairAnalysis(
+                        gpu_file=str(gpu_file),
+                        npu_file=str(npu_file),
+                        gpu_api=gpu_api,
+                        gpu_platform=gpu_platform,
+                        result=AnalysisResult(
+                            is_equivalent=False,
+                            npu_equivalent="N/A",
+                            equivalence_level=MappingEquivalenceLevel.CONCEPTUAL_ONLY,
+                            confidence=0.0,
+                            adaptation_notes="dry-run mode",
+                            optimization_hints="none",
+                        ),
+                        parsing_failed=False,
+                    )
+                    print(f"    [dry-run] GPU API: {gpu_api}")
+                else:
+                    analysis = await engine.analyze_file_pair(
+                        gpu_file=gpu_file,
+                        npu_file=npu_file,
+                        gpu_platform=gpu_platform,
+                    )
+                    print(f"    -> {analysis.gpu_api} -> {analysis.result.npu_equivalent} "
+                          f"(置信度: {analysis.result.confidence:.2f})")
+
+                results.append(analysis)
 
         # 统计结果
         total = len(results)
