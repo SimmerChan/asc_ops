@@ -141,6 +141,9 @@ class AscendCAPIDefinition:
     confidence: float = 1.0
     last_updated: datetime = field(default_factory=datetime.now)
 
+    # 完整导航路径，如 ("SIMT API", "精度转换", "rintf")
+    nav_path: tuple[str, ...] = field(default_factory=tuple)
+
 
 @dataclass
 class KnowledgeStats:

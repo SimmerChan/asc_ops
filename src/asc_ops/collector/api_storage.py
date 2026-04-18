@@ -7,6 +7,7 @@ API 存储模块
 将 API 数据存储到 ChromaDB 和 Redis
 """
 
+import json
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -157,6 +158,7 @@ class APIStorage:
                 "source_type": api_definition.source.source_type if api_definition.source else "official",
                 "source_url": api_definition.source.source_url if api_definition.source else "",
                 "last_updated": api_definition.last_updated.isoformat() if api_definition.last_updated else datetime.now().isoformat(),
+                "nav_path": json.dumps(api_definition.nav_path) if api_definition.nav_path else "",
             }
 
             # 准备文档内容 (用于向量检索)

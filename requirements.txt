@@ -16,6 +16,9 @@ pandas>=2.0.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
 
+# Browser rendering (for dynamic content scraping)
+playwright>=1.40.0
+
 # Embedding and ML
 sentence-transformers>=2.2.0
 
