@@ -13,7 +13,7 @@ from src.asc_ops.cli.operator_sync import (
     OperatorPR,
     OperatorSyncResult,
     OperatorSync,
-    ASCEND_REPOS,
+    DEFAULT_GITHUB_REPOS,
     add_operator_sync_parser,
 )
 
@@ -122,7 +122,9 @@ class TestOperatorSync:
         sync = OperatorSync()
 
         assert sync._since_date is None
-        assert sync._repo_filter == ASCEND_REPOS
+        # _repo_filter 是 RepoConfig 列表
+        assert len(sync._repo_filter) == len(DEFAULT_GITHUB_REPOS)
+        assert all(hasattr(r, 'name') for r in sync._repo_filter)
 
     def test_init_with_since_date(self):
         """带日期初始化"""
@@ -136,33 +138,37 @@ class TestOperatorSync:
         repos = ["ascend/cann-a", "ascend/cann-b"]
         sync = OperatorSync(repo_filter=repos)
 
-        assert sync._repo_filter == repos
+        # OperatorSync converts strings to RepoConfig objects
+        assert len(sync._repo_filter) == 2
+        assert sync._repo_filter[0].name == "ascend/cann-a"
+        assert sync._repo_filter[1].name == "ascend/cann-b"
 
     @pytest.mark.asyncio
     async def test_sync_repository_mock(self):
         """测试仓库同步 (模拟)"""
+        from src.asc_ops.cli.operator_sync import RepoConfig
         sync = OperatorSync(repo_filter=["ascend/test"])
 
-        result = await sync.sync_repository("ascend/test")
+        result = await sync.sync_repository(RepoConfig(name="ascend/test", platform="github"))
 
         assert result.total_prs >= 0
         assert result.errors == []
 
 
-class TestASCEND_REPOS:
+class TestDEFAULT_GITHUB_REPOS:
     """昇腾仓库列表测试"""
 
     def test_repos_not_empty(self):
         """仓库列表非空"""
-        assert len(ASCEND_REPOS) > 0
+        assert len(DEFAULT_GITHUB_REPOS) > 0
 
     def test_repo_format(self):
         """仓库格式正确"""
-        for repo in ASCEND_REPOS:
+        for repo in DEFAULT_GITHUB_REPOS:
             assert "/" in repo
             parts = repo.split("/")
             assert len(parts) == 2
-            assert parts[0] == "ascend"
+            assert parts[0] == "ascend-community"
 
 
 class TestAddParser:

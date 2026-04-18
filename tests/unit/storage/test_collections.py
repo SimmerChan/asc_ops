@@ -79,7 +79,8 @@ class TestCollectionHelperFunctions:
         assert "ascend_apis" in names
         assert "bug_fixes" in names
         assert "optimizations" in names
-        assert len(names) == 3
+        assert "cross_platform_mappings" in names
+        assert len(names) == 4
 
 
 class TestEnsureCollectionExists:

@@ -9,6 +9,7 @@
 
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional, List
 
 from .scoring.config import RankingConfig, DEFAULT_RANKING_CONFIG
@@ -101,7 +102,8 @@ class ConfidenceRanker:
         self,
         metadata: dict,
         citation_count: Optional[int] = None,
-        correction_count: Optional[int] = None
+        correction_count: Optional[int] = None,
+        reference_time: Optional[datetime] = None,
     ) -> CompositeScore:
         """
         计算单个条目的综合分数
@@ -110,6 +112,7 @@ class ConfidenceRanker:
             metadata: 条目元数据
             citation_count: 引用次数 (可选)
             correction_count: 纠错次数 (可选)
+            reference_time: 参考时间 (可选，默认为当前时间)
 
         Returns:
             CompositeScore: 综合评分结果
@@ -118,7 +121,7 @@ class ConfidenceRanker:
         authority = self.authority_scorer.calculate_from_metadata(metadata)
 
         # 时效性评分
-        recency = self.recency_calculator.calculate_from_metadata(metadata)
+        recency = self.recency_calculator.calculate_from_metadata(metadata, reference_time=reference_time)
 
         # 准确性评分
         if citation_count is not None or correction_count is not None:
@@ -254,17 +257,22 @@ class ConfidenceRanker:
 
         return scored_results[:top_k]
 
-    def explain_score(self, metadata: dict) -> dict:
+    def explain_score(
+        self,
+        metadata: dict,
+        reference_time: Optional[datetime] = None,
+    ) -> dict:
         """
         解释单个条目的分数构成 (用于调试)
 
         Args:
             metadata: 条目元数据
+            reference_time: 参考时间 (可选，默认为当前时间)
 
         Returns:
             dict: 分数解释
         """
-        composite = self.calculate_composite_score(metadata)
+        composite = self.calculate_composite_score(metadata, reference_time=reference_time)
 
         return {
             "total_score": composite.total,

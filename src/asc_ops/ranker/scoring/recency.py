@@ -114,12 +114,17 @@ class RecencyCalculator:
             lambda_value=lambda_val
         )
 
-    def calculate_from_metadata(self, metadata: dict) -> RecencyScore:
+    def calculate_from_metadata(
+        self,
+        metadata: dict,
+        reference_time: Optional[datetime] = None,
+    ) -> RecencyScore:
         """
         从元数据计算时效性分数
 
         Args:
             metadata: 包含 last_updated/updated_at/timestamp 的字典
+            reference_time: 参考时间，默认为当前时间
 
         Returns:
             RecencyScore: 时效性评分结果
@@ -140,7 +145,7 @@ class RecencyCalculator:
                 lambda_value=self.config.recency_lambda
             )
 
-        return self.calculate(last_updated)
+        return self.calculate(last_updated, reference_time=reference_time)
 
     def get_decay_table(self, max_days: int = 90) -> list[tuple[int, float]]:
         """

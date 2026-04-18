@@ -49,7 +49,6 @@ class KnowledgeQueryService:
             self._chroma = chroma_client
         else:
             # 优先使用传入的路径，否则从配置读取
-            from .config import get_config
             db_path = chroma_db_path or get_config().chroma.db_path
             self._chroma = ChromaDBClient(persist_directory=db_path)
         self._redis = redis_client or RedisClient(mock=True)

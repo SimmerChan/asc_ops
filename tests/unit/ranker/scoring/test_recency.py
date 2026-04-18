@@ -120,7 +120,7 @@ class TestRecencyCalculator:
         metadata = {
             "last_updated": (self.reference_time - timedelta(days=14)).isoformat()
         }
-        score = self.calculator.calculate_from_metadata(metadata)
+        score = self.calculator.calculate_from_metadata(metadata, reference_time=self.reference_time)
 
         assert score.days_since_update == 14
 
@@ -129,7 +129,7 @@ class TestRecencyCalculator:
         metadata = {
             "updated_at": (self.reference_time - timedelta(days=21)).isoformat()
         }
-        score = self.calculator.calculate_from_metadata(metadata)
+        score = self.calculator.calculate_from_metadata(metadata, reference_time=self.reference_time)
 
         assert score.days_since_update == 21
 

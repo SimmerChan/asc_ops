@@ -104,7 +104,7 @@ class TestConfidenceRanker:
             "correction_count": 0
         }
 
-        score = self.ranker.calculate_composite_score(metadata)
+        score = self.ranker.calculate_composite_score(metadata, reference_time=self.reference_time)
 
         assert score.total > 0
         assert score.authority.total == 1.0  # official * core
@@ -227,7 +227,7 @@ class TestConfidenceRanker:
             "correction_count": 2
         }
 
-        explanation = self.ranker.explain_score(metadata)
+        explanation = self.ranker.explain_score(metadata, reference_time=self.reference_time)
 
         assert "total_score" in explanation
         assert "breakdown" in explanation
@@ -252,7 +252,7 @@ class TestConfidenceRanker:
             "correction_count": 0
         }
 
-        score = ranker.calculate_composite_score(metadata)
+        score = ranker.calculate_composite_score(metadata, reference_time=self.reference_time)
 
         # authority: 1.0 * 1.0 = 1.0, weight 0.6
         # recency: 1.0 (今天), weight 0.2
