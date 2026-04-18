@@ -51,7 +51,8 @@ class KnowledgeQueryService:
             # 优先使用传入的路径，否则从配置读取
             db_path = chroma_db_path or get_config().chroma.db_path
             self._chroma = ChromaDBClient(persist_directory=db_path)
-        self._redis = redis_client or RedisClient(mock=True)
+        # 如果没有传入 redis_client，使用真实 Redis（mock=False）
+        self._redis = redis_client if redis_client is not None else RedisClient()
         self._storage = KnowledgeStorage(
             chroma_client=self._chroma,
             redis_client=self._redis,

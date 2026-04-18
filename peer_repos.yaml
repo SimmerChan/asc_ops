@@ -27,3 +27,13 @@ peer_repos:
     analysis_paths:
       - /include/cutlass/gemm/device/
       - /include/cutlass/kernel.h
+
+  # FBGEMM Sparse Ops <-> AscendC
+  # GPU 路径有 fbgemm_gpu 前缀，NPU 路径没有
+  - name: fbgemm-sparse-ops
+    gpu_repo_path: /Users/huangshilei/Documents/pythonprojects/FBGEMM
+    npu_repo_path: /Users/huangshilei/Documents/pythonprojects/fbgemm-ascend
+    gpu_platform: cuda
+    analysis_paths:
+      - fbgemm_gpu/src/sparse_ops
+      - src/sparse_ops

@@ -13,7 +13,7 @@ import logging
 import sys
 import json
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 from ..mapper.llm_analyzer import GPUNPUAnalysisEngine, FilePairAnalysis, AnalysisResult
 from ..gpu_collector.storage import GPUStorage
@@ -243,14 +243,33 @@ def discover_file_pairs(
 def _discover_pairs_in_dir(gpu_dir: Path, npu_dir: Path) -> List[Tuple[Path, Path]]:
     """递归发现文件对"""
     pairs = []
-    # 使用 stem (不含扩展名) 作为 key 以匹配 .cu 和 .cpp 文件
-    gpu_files = {f.stem: f for f in gpu_dir.rglob("*.cu") if f.is_file()}
-    npu_files = {f.stem: f for f in npu_dir.rglob("*.cpp") if f.is_file()}
+
+    # 收集 GPU .cu 文件（递归查找所有层级）
+    gpu_files: Dict[str, List[Path]] = {}
+    for f in gpu_dir.rglob("*.cu"):
+        if f.is_file():
+            # 使用相对路径的 stem 作为 key，支持嵌套目录
+            rel_path = f.relative_to(gpu_dir)
+            stem = rel_path.stem
+            if stem not in gpu_files:
+                gpu_files[stem] = []
+            gpu_files[stem].append(f)
+
+    # 收集 NPU .cpp 文件（递归查找所有层级）
+    npu_files: Dict[str, List[Path]] = {}
+    for f in npu_dir.rglob("*.cpp"):
+        if f.is_file():
+            rel_path = f.relative_to(npu_dir)
+            stem = rel_path.stem
+            if stem not in npu_files:
+                npu_files[stem] = []
+            npu_files[stem].append(f)
 
     # 配对相同文件名的文件
     for name in gpu_files:
         if name in npu_files:
-            pairs.append((gpu_files[name], npu_files[name]))
+            # 配对第一个找到的文件
+            pairs.append((gpu_files[name][0], npu_files[name][0]))
 
     return pairs
 

@@ -577,8 +577,10 @@ Rules:
             logger.info(f"Dry-run: would store {analysis.gpu_api} -> {analysis.result.npu_equivalent}")
             return True
 
-        if not analysis.result.is_equivalent:
-            logger.info(f"Skipping non-equivalent mapping: {analysis.gpu_api}")
+        # 存储所有非 parsing_failed 的结果（不仅仅是 is_equivalent=true 的）
+        # 包括 conceptual 级别的映射用于知识积累
+        if analysis.result.parsing_failed:
+            logger.info(f"Skipping parsing failed: {analysis.gpu_api}")
             return False
 
         # 转换为 CrossPlatformMapping
@@ -587,8 +589,13 @@ Rules:
             platform=analysis.gpu_platform,
         )
 
-        # 根据置信度确定 source
-        source = "llm_high_conf" if analysis.result.confidence >= 0.8 else "llm_suggested"
+        # 根据置信度和等价级别确定 source
+        if analysis.result.is_equivalent and analysis.result.confidence >= 0.8:
+            source = "llm_high_conf"
+        elif analysis.result.is_equivalent:
+            source = "llm_equivalent"
+        else:
+            source = "llm_suggested"
 
         # 存储
         if self._storage:
