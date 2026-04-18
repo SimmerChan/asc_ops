@@ -13,6 +13,8 @@ import json
 from src.asc_ops.mcp.server import MCPServer
 from src.asc_ops.mcp.tools import MCPTools
 from src.asc_ops.mapper import MapperEngine
+from src.asc_ops.gpu_collector.storage import GPUStorage
+from src.asc_ops.gpu_collector.models import CrossPlatformMapping, GPUPlatform, MappingEquivalenceLevel
 
 
 class TestMCPIntegration:
@@ -22,7 +24,20 @@ class TestMCPIntegration:
         """设置测试"""
         self.server = MCPServer()
         self.tools = MCPTools()
-        self.mapper = MapperEngine()
+        # 使用 mock 存储
+        self.storage = GPUStorage(use_mock=True)
+        # 种子测试数据：__syncthreads -> SyncAll
+        self.storage.store_cross_platform_mapping(CrossPlatformMapping(
+            mapping_id="test-sync",
+            gpu_api="__syncthreads",
+            npu_api="SyncAll",
+            platform=GPUPlatform.CUDA,
+            equivalence_level=MappingEquivalenceLevel.EXACT,
+            adaptation_notes="CUDA sync threads to AscendC sync",
+            confidence=0.95,
+            source="test",
+        ))
+        self.mapper = MapperEngine(storage=self.storage)
 
     def test_server_with_mapper_engine(self):
         """服务器配置映射引擎"""
