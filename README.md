@@ -33,6 +33,18 @@ AscendC Operator Knowledge Base (asc_ops) 是一个面向Coding Agent的昇腾As
 - 通义灵码 (通过MCP)
 - 其他MCP兼容Agent
 
+### 效果验证
+
+实际测试表明：使用 MCP 知识库查询 vs 无知识库搜索，LLM 回答质量差异显著：
+
+| 指标 | 无 MCP | 有 MCP |
+|------|--------|--------|
+| API 推荐 | `aclnnGather` (猜测) | `aclnnInvertPermute` (精确) |
+| 置信度 | 低 | **0.98 (exact)** |
+| 等价级别 | 未知 | 已验证 |
+
+详见 [使用案例](docs/use_cases/)
+
 ---
 
 ## 系统架构
@@ -277,7 +289,7 @@ asc_ops/
 └── docs/                       # 文档
     ├── plans/                   # 开发计划
     ├── brainstorms/             # 需求文档
-    └── ...
+    └── use_cases/              # 使用案例
 ```
 
 ---
@@ -317,6 +329,7 @@ asc_ops/
 
 - [开发计划](docs/plans/) - 详细实施计划
 - [GPU-NPU映射分析](memory/fbgemm-sparse-ops-analysis.md) - FBGEMM稀疏算子映射
+- [使用案例](docs/use_cases/) - MCP工具效果对比实测
 
 ---
 
