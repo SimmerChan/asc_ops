@@ -20,7 +20,7 @@ AscendC Operator Knowledge Base (asc_ops) 是一个面向Coding Agent的昇腾As
 
 | 功能 | 说明 |
 |------|------|
-| **AscendC API知识库** | 848+ 官方API，覆盖Vec/Matmul/Tensor等核心接口 |
+| **AscendC API知识库** | 1120 官方API，100% nav_path覆盖，覆盖Vec/Matmul/Tensor等核心接口 |
 | **NPU算子知识** | 1203+ Bug修复经验 + 13+ 优化方案 |
 | **GPU→NPU适配** | 57+ 跨平台API映射 (CUDA/CUB/CUTLASS → AscendC) |
 | **MCP接口** | 支持Claude Code/CoPilot/Cursor等MCP兼容Agent |
@@ -43,7 +43,7 @@ AscendC Operator Knowledge Base (asc_ops) 是一个面向Coding Agent的昇腾As
 |------|------------------|-------------------|
 | **本质** | 单点工具/指令集 | **知识检索系统** |
 | **交互方式** | 被动响应指令 | **主动检索** |
-| **知识规模** | Skill本身的指令容量 | **2000+条知识** (848 API + 1203 Bug + 57映射) |
+| **知识规模** | Skill本身的指令容量 | **2400+条知识** (1120 API + 1203 Bug + 57映射) |
 | **检索能力** | 固定指令路径 | **混合检索** (向量+BM25+置信度) |
 
 ### asc_ops的独特/不可替代优势
@@ -208,7 +208,7 @@ EMBEDDING_DEVICE=mps  # 或 cuda
 data/
 ├── chroma_db/           # 向量数据库
 │   ├── cross_platform_mappings  # 57条 GPU-NPU映射
-│   ├── ascend_apis            # 848个 API
+│   ├── ascend_apis            # 1120个 API (100% nav_path)
 │   ├── bug_fixes              # 1203个 Bug知识
 │   └── optimizations         # 13个 优化知识
 └── checkpoints/             # 同步检查点
@@ -300,12 +300,12 @@ python -m src.asc_ops.cli.collect sync \
 
 ## 数据规模
 
-| 知识类型 | 数量 | 来源 |
-|----------|------|------|
-| AscendC API | 848+ | 昇腾官方文档 |
-| NPU Bug修复 | 1203+ | ops-nn, ops-math等6仓 |
-| NPU优化方案 | 13+ | ops-nn, ops-math等6仓 |
-| GPU→NPU映射 | 57+ | FBGEMM, cuBLAS, CUTLASS等 |
+| 知识类型 | 数量 | 来源 | 状态 |
+|----------|------|------|------|
+| AscendC API | 1120 | 昇腾官方文档 | ✅ 100% nav_path |
+| NPU Bug修复 | 1203+ | ops-nn, ops-math等6仓 | ✅ |
+| NPU优化方案 | 13+ | ops-nn, ops-math等6仓 | ✅ |
+| GPU→NPU映射 | 57+ | FBGEMM, cuBLAS, CUTLASS等 | ✅ |
 
 ---
 
@@ -375,6 +375,7 @@ asc_ops/
 | Phase 4 | 知识质量评分体系 | ✅ 已完成 | 2026-04-11 |
 | Phase 5 | Bug/优化知识抽取 | ✅ 已完成 | 2026-04-12 |
 | GPU-NPU LLM Discovery | GPU→NPU自动映射分析 | ✅ 已完成 | 2026-04-18 |
+| API nav_path | 342个API导航路径补全 | ✅ 已完成 | 2026-04-19 |
 
 ### 核心模块
 
