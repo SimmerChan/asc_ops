@@ -66,16 +66,18 @@ class FeedbackAPI:
 
     收集和处理用户对知识的纠错反馈
 
-    Redis Key Pattern:
-    - ascendc:corrections:{entity_type}:{entity_id}:{correction_type} -> Counter
-    - ascendc:correction_reports:{entity_type}:{entity_id} -> List of reports
+    Redis Key Pattern (统一为 ascendc:corrections:* 前缀):
+    - ascendc:corrections:detail:{entity_type}:{entity_id}:{correction_type} -> Counter
+    - ascendc:corrections:reports:{entity_type}:{entity_id} -> List of reports
+    - ascendc:corrections:threshold:{entity_type} -> int
+    - ascendc:corrections:index -> Sorted Set (全局索引)
     """
 
-    CORRECTION_COUNT_KEY = "ascendc:corrections:{entity_type}:{entity_id}:{correction_type}"
-    CORRECTION_REPORTS_KEY = "ascendc:correction_reports:{entity_type}:{entity_id}"
-    CORRECTION_THRESHOLD_KEY = "ascendc:correction_threshold:{entity_type}"
+    CORRECTION_COUNT_KEY = "ascendc:corrections:detail:{entity_type}:{entity_id}:{correction_type}"
+    CORRECTION_REPORTS_KEY = "ascendc:corrections:reports:{entity_type}:{entity_id}"
+    CORRECTION_THRESHOLD_KEY = "ascendc:corrections:threshold:{entity_type}"
     # 全局修正报告索引: sorted set，score=timestamp，value=json{entity_type,entity_id,correction_type,reported_at}
-    CORRECTION_INDEX_KEY = "ascendc:correction_reports:index"
+    CORRECTION_INDEX_KEY = "ascendc:corrections:index"
 
     # 默认纠错阈值 (超过此值触发告警)
     DEFAULT_CORRECTION_THRESHOLD = 5

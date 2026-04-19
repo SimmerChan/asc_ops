@@ -15,7 +15,7 @@ MVP (Phase 1-5) 已完成，但存在以下待改进点：
 | 需求 | 状态 | 说明 |
 |------|------|------|
 | R1: 修正报告查询 | ✅ 已完成 | 已实现 `/api/v1/quality/correction/reports` |
-| R2: Redis键前缀统一 | ❌ 未完成 | `ascendc:citations:*` vs `ascendc:stats:*` |
+| R2: Redis键前缀统一 | ✅ 已完成 | 统一为 `ascendc:stats:*` 和 `ascendc:corrections:*` |
 
 ## Requirements Trace
 
@@ -40,33 +40,26 @@ MVP (Phase 1-5) 已完成，但存在以下待改进点：
 
 ## Implementation Units
 
-- [ ] **Unit 1: Redis 键前缀统一**
+- [x] **Unit 1: Redis 键前缀统一** ✅
 
-**Goal:** 统一所有 Redis 键前缀为 `ascendc:stats:*`
+**Status:** ✅ 已完成 (2026-04-19)
 
-**Requirements:** R2
+**迁移结果:**
+- CitationTracker: `ascendc:citations:*` → `ascendc:stats:citation:*`
+- CitationTracker: `ascendc:corrections:*` → `ascendc:stats:correction:*`
+- CitationTracker: `ascendc:last_cited:*` → `ascendc:stats:last_cited:*`
+- CitationTracker: `ascendc:last_corrected:*` → `ascendc:stats:last_corrected:*`
+- FeedbackAPI: `ascendc:corrections:{entity}:{id}:{type}` → `ascendc:corrections:detail:{entity}:{id}:{type}`
+- FeedbackAPI: `ascendc:correction_reports:*` → `ascendc:corrections:reports:*`
 
-**Dependencies:** 无
+**数据迁移:** 43 个键已迁移，0 个键丢失
 
-**Files:**
-- Modify: `src/asc_ops/quality/citation_tracker.py`
-- Modify: `src/asc_ops/ranker/integrated_ranker.py`
-- Test: `tests/unit/quality/test_citation_tracker.py`
-
-**Approach:**
-1. 将 `ascendc:citations:*` 改为 `ascendc:stats:*`
-2. 添加数据迁移脚本（可选）
-3. 更新相关文档
-
-**Patterns to follow:**
-- 参考 `redis_client.py` 中的键名前缀模式
-
-**Test scenarios:**
-- 所有使用旧前缀的代码能正常工作
-- 新增数据使用统一前缀
-
-**Verification:**
-- Redis 中只有 `ascendc:stats:*` 前缀的键
+**Files Modified:**
+- `src/asc_ops/quality/citation_tracker.py` - 更新键前缀定义
+- `src/asc_ops/quality/feedback.py` - 更新键前缀定义
+- `src/asc_ops/storage/redis_client.py` - 修复 mock 模式初始化
+- `tests/unit/quality/test_feedback.py` - 更新测试中的硬编码键
+- `scripts/migrate_redis_keys.py` - 新增迁移脚本
 
 ## Open Questions
 

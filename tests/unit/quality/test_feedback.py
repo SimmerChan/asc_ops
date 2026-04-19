@@ -128,9 +128,10 @@ class TestFeedbackAPI:
     def test_get_total_corrections(self, api):
         """测试获取总纠错次数"""
         # 直接设置纠错计数 (不通过 report_correction)
-        api._incr("ascendc:corrections:bug:bug_006:wrong")
-        api._incr("ascendc:corrections:bug:bug_006:wrong")
-        api._incr("ascendc:corrections:bug:bug_006:incomplete")
+        # 使用新的统一前缀
+        api._incr("ascendc:corrections:detail:bug:bug_006:wrong")
+        api._incr("ascendc:corrections:detail:bug:bug_006:wrong")
+        api._incr("ascendc:corrections:detail:bug:bug_006:incomplete")
 
         total = api.get_total_corrections("bug_006", "bug")
         assert total == 3
@@ -138,9 +139,10 @@ class TestFeedbackAPI:
     def test_get_correction_stats(self, api):
         """测试获取纠错统计"""
         # 设置一些纠错
-        api._incr("ascendc:corrections:bug:bug_007:wrong")
-        api._incr("ascendc:corrections:bug:bug_007:wrong")
-        api._incr("ascendc:corrections:bug:bug_007:outdated")
+        # 使用新的统一前缀
+        api._incr("ascendc:corrections:detail:bug:bug_007:wrong")
+        api._incr("ascendc:corrections:detail:bug:bug_007:wrong")
+        api._incr("ascendc:corrections:detail:bug:bug_007:outdated")
 
         stats = api.get_correction_stats("bug_007", "bug")
 

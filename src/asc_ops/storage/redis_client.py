@@ -308,12 +308,12 @@ class RedisClient:
             添加的成员数量
         """
         if self._mock:
-            if "ascendc:correction_reports:index" not in self._mock_data:
-                self._mock_data["ascendc:correction_reports:index"] = {}
-            data = self._mock_data["ascendc:correction_reports:index"]
+            if key not in self._mock_data:
+                self._mock_data[key] = {}
+            data = self._mock_data[key]
             if not isinstance(data, dict):
                 data = {}
-                self._mock_data["ascendc:correction_reports:index"] = data
+                self._mock_data[key] = data
             for member, score in mapping.items():
                 data[member] = score
             return len(mapping)

@@ -66,17 +66,18 @@ class CitationTracker:
 
     追踪知识条目的引用次数和纠错次数
 
-    Redis Key Pattern:
-    - ascendc:citations:{entity_type} -> Sorted Set (entity_id -> citation_count)
-    - ascendc:corrections:{entity_type} -> Sorted Set (entity_id -> correction_count)
-    - ascendc:last_cited:{entity_type}:{entity_id} -> String (ISO timestamp)
-    - ascendc:last_corrected:{entity_type}:{entity_id} -> String (ISO timestamp)
+    Redis Key Pattern (统一为 ascendc:stats:* 前缀):
+    - ascendc:stats:citation:{entity_type} -> Sorted Set (entity_id -> citation_count)
+    - ascendc:stats:correction:{entity_type} -> Sorted Set (entity_id -> correction_count)
+    - ascendc:stats:last_cited:{entity_type}:{entity_id} -> String (ISO timestamp)
+    - ascendc:stats:last_corrected:{entity_type}:{entity_id} -> String (ISO timestamp)
     """
 
-    CITATION_KEY = "ascendc:citations:{entity_type}"
-    CORRECTION_KEY = "ascendc:corrections:{entity_type}"
-    LAST_CITED_KEY = "ascendc:last_cited:{entity_type}:{entity_id}"
-    LAST_CORRECTED_KEY = "ascendc:last_corrected:{entity_type}:{entity_id}"
+    # 统一前缀：ascendc:stats:*
+    CITATION_KEY = "ascendc:stats:citation:{entity_type}"
+    CORRECTION_KEY = "ascendc:stats:correction:{entity_type}"
+    LAST_CITED_KEY = "ascendc:stats:last_cited:{entity_type}:{entity_id}"
+    LAST_CORRECTED_KEY = "ascendc:stats:last_corrected:{entity_type}:{entity_id}"
 
     def __init__(self, redis_client: Optional[RedisClient] = None):
         """
