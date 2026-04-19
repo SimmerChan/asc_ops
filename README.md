@@ -113,6 +113,7 @@ asc_ops的核心不可替代性：
 - [CUB BlockScan 迁移](docs/use_cases/usecase-gpu-npu-block-scan-migration.md)
 - [Matmul Bug 查询](docs/use_cases/usecase-bug-knowledge-matmul.md)
 - [API 知识查询](docs/use_cases/usecase-api-knowledge-tensor.md)
+- [AtomicMax API 查询](docs/use_cases/usecase-atomicmax-api-query.md)
 
 ---
 
