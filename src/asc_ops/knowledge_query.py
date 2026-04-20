@@ -20,7 +20,7 @@ from .storage.collections import CollectionType
 from .ranker import Ranker, FusionConfig, ScoredResult, QueryType, ConfidenceRanker, RankingConfig
 from .extractor.knowledge_storage import KnowledgeStorage
 from .quality import CitationTracker, FeedbackAPI
-from .collector.embedder import QwenEmbedder
+from .collector.embedder import QwenEmbedder, MockEmbedder, APIEmbedder as STEmbedder
 from .config import get_config
 
 logger = logging.getLogger(__name__)
@@ -62,20 +62,49 @@ class KnowledgeQueryService:
             config=RankingConfig(),
             redis_client=self._redis
         )
-        # 初始化 QwenEmbedder 用于 API 语义查询
-        embedder_config = get_config().embedding
-        self._embedder = QwenEmbedder(
-            model_name=embedder_config.model_name,
-            model_path=embedder_config.model_path,
-            embedding_dim=embedder_config.embedding_dim or 1024,
-            batch_size=embedder_config.batch_size or 8,
-            device=embedder_config.device or "mps",
-        )
+        # 初始化 Embedder 用于 API 语义查询（带 fallback）
+        self._embedder = self._create_embedder()
+        self._is_mock_embedder = isinstance(self._embedder, MockEmbedder)
         self._citation_tracker = CitationTracker(self._redis)
         self._feedback_api = FeedbackAPI(self._redis, self._citation_tracker)
         self.base_url = base_url
 
-        logger.info("KnowledgeQueryService initialized")
+        logger.info(f"KnowledgeQueryService initialized (embedder={type(self._embedder).__name__})")
+
+    def _create_embedder(self):
+        """根据配置创建 Embedder，带 fallback 逻辑"""
+        embedder_config = get_config().embedding
+        embedder_type = embedder_config.embedder_type.lower()
+
+        if embedder_type == "qwen":
+            try:
+                return QwenEmbedder(
+                    model_name=embedder_config.model_name,
+                    model_path=embedder_config.model_path,
+                    embedding_dim=embedder_config.embedding_dim or 1024,
+                    batch_size=embedder_config.batch_size or 8,
+                    device=embedder_config.device or "mps",
+                )
+            except Exception as e:
+                logger.warning(f"QwenEmbedder failed: {e}, falling back to MockEmbedder")
+                return MockEmbedder(embedding_dim=384)
+        elif embedder_type == "sentence_transformers":
+            try:
+                return STEmbedder(
+                    model_name=embedder_config.model_name,
+                    model_path=embedder_config.model_path,
+                    embedding_dim=embedder_config.embedding_dim,
+                    batch_size=embedder_config.batch_size,
+                )
+            except ImportError:
+                logger.warning("sentence_transformers not available, using MockEmbedder")
+                return MockEmbedder(embedding_dim=384)
+        elif embedder_type == "mock":
+            logger.warning("Using MockEmbedder - semantic search will return empty results")
+            return MockEmbedder(embedding_dim=384)
+        else:
+            logger.warning(f"Unknown embedder type '{embedder_type}', using MockEmbedder")
+            return MockEmbedder(embedding_dim=384)
 
     async def query_for_development(
         self,
@@ -351,6 +380,15 @@ class KnowledgeQueryService:
         limit: int = 5,
     ) -> List[BugFixKnowledge]:
         """语义查询 Bug 修复知识"""
+        # MockEmbedder 无法进行有意义的语义搜索
+        if self._is_mock_embedder:
+            logger.warning(
+                "Semantic bug search requires embedding model but MockEmbedder is active. "
+                "Please configure EMBEDDING_EMBEDDER_TYPE=qwen or sentence_transformers. "
+                "Use query_for_development(operator_name=) for exact operator lookup instead."
+            )
+            return []
+
         try:
             # 获取 bug_fixes collection
             collection = self._chroma.get_collection("bug_fixes")
@@ -425,11 +463,20 @@ class KnowledgeQueryService:
         limit: int = 10,
     ) -> List[AscendCAPIDefinition]:
         """语义查询 API"""
+        # MockEmbedder 无法进行有意义的语义搜索
+        if self._is_mock_embedder:
+            logger.warning(
+                "Semantic API search requires embedding model but MockEmbedder is active. "
+                "Please configure EMBEDDING_EMBEDDER_TYPE=qwen or sentence_transformers. "
+                "Use query_api(api_name=) for exact match instead."
+            )
+            return []
+
         try:
             # 获取 ascend_apis collection
             collection = self._chroma.get_collection("ascend_apis")
 
-            # 使用 QwenEmbedder 生成查询向量
+            # 使用 Embedder 生成查询向量
             query_embedding = self._embedder.encode_api(query)
 
             # 构建 where 条件
