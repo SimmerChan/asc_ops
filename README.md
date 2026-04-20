@@ -284,13 +284,18 @@ asyncio.run(main())
 
 ### MCP 工具依赖说明
 
-| 工具 | 查询方式 | Embedding 依赖 |
-|------|---------|---------------|
-| `query_for_development` | Redis 精确查询 | ❌ 不需要 |
-| `query_for_troubleshooting` | ChromaDB 向量查询 | ✅ 需要 |
-| `query_api` (精确) | ChromaDB 精确匹配 | ❌ 不需要 |
-| `query_api` (语义) | ChromaDB 向量查询 | ✅ 需要 |
-| `query_cross_platform` | SQLite 精确查询 | ❌ 不需要 |
+| 工具 | ChromaDB 依赖 | Redis 依赖 | Embedding 依赖 |
+|------|-------------|-----------|---------------|
+| `query_for_development` | ✅ 精确查询 | ✅ 引用追踪/置信度排序 | ❌ 不需要 |
+| `query_for_troubleshooting` | ✅ 向量查询 | ✅ 引用追踪/置信度排序 | ✅ 需要 |
+| `query_api` (精确) | ✅ 精确匹配 | ❌ 不需要 | ❌ 不需要 |
+| `query_api` (语义) | ✅ 向量查询 | ❌ 不需要 | ✅ 需要 |
+| `query_cross_platform` | ❌ SQLite | ❌ 不需要 | ❌ 不需要 |
+
+**说明**：
+- **ChromaDB**: 向量数据库，存储 API 知识库
+- **Redis**: KV 存储，用于引用计数追踪和置信度感知排序
+- **Embedding**: 向量化模型，用于语义搜索
 
 **Embedding 模型配置**：
 

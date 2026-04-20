@@ -9,15 +9,15 @@
 | 组件 | 最低版本 | 推荐版本 | 说明 |
 |------|----------|----------|------|
 | Python | 3.10 | 3.11 | 必须 |
-| Redis | 6.0 | 7.0 | 可选，生产环境推荐 |
+| Redis | 6.0 | 7.0 | **MCP 工具必需** |
 | Git | 2.30 | 最新 | 必须 |
 | pip | 21.0 | 最新 | 包管理 |
 
-### 可选组件
+### 必需组件
 
 | 组件 | 用途 | 安装方式 |
 |------|------|----------|
-| Redis | 生产级KV存储 | Docker或apt |
+| Redis | MCP 工具引用追踪和置信度排序 | Docker 或 apt |
 | Docker | 容器化部署 | 官方安装 |
 | Docker Compose | 多容器编排 | 官方安装 |
 
@@ -97,7 +97,7 @@ cp .env.example .env
 # === ChromaDB配置 ===
 CHROMA_DB_PATH=./data/chroma_db
 
-# === Redis配置（可选）===
+# === Redis配置（MCP 工具必需）===
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_DB=0
@@ -122,11 +122,15 @@ LOG_LEVEL=INFO
 | 变量名 | 必填 | 说明 |
 |--------|------|------|
 | CHROMA_DB_PATH | 是 | ChromaDB数据目录 |
-| REDIS_* | 否 | 不配置则使用模拟存储 |
+| REDIS_HOST/PORT | **是** | MCP 工具必需 |
+| REDIS_DB | 否 | 默认0 |
+| REDIS_PASSWORD | 否 | 无密码则留空 |
 | ANTHROPIC_API_KEY | 推荐 | 用于LLM知识抽取 |
 | OPENAI_API_KEY | 推荐 | 替代Anthropic的LLM选项 |
 | EMBEDDING_MODEL | 是 | 向量化模型名称 |
 | SERVER_PORT | 否 | 默认8000 |
+
+> **注意**: Redis 是 MCP 工具正常运行的必要依赖，用于引用计数追踪和置信度感知排序。缺少 Redis 时部分 MCP 工具将无法正常工作。
 
 ---
 
@@ -174,7 +178,7 @@ pip install chromadb==0.4.22
 
 ### Q2: Redis连接失败
 
-**症状**: `ConnectionError: Error connecting to Redis`
+**症状**: `ConnectionError: Error connecting to Redis` 或 `failed to initialize redis client`
 
 **解决**:
 ```bash
@@ -184,9 +188,12 @@ redis-server
 # 方式2: 使用docker启动Redis
 docker run -d -p 6379:6379 redis:7-alpine
 
-# 方式3: 暂时禁用Redis（使用模拟存储）
-# 在.env中不配置REDIS_*变量
+# 验证Redis是否正常运行
+redis-cli ping
+# 预期输出: PONG
 ```
+
+> **重要**: Redis 是 MCP 工具的必需依赖，无法禁用。请确保 Redis 服务正常运行后再使用 MCP 工具。
 
 ### Q3: 向量化模型下载失败
 
