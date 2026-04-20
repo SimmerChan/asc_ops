@@ -57,6 +57,74 @@ pip install -r requirements-dev.txt
 
 ---
 
+### 方式四：安装 Redis（必需）
+
+MCP 工具需要 Redis 服务。请根据你的操作系统选择安装方式：
+
+#### macOS
+
+```bash
+# 使用 Homebrew 安装
+brew install redis
+
+# 启动 Redis
+brew services start redis
+
+# 或手动启动
+redis-server
+```
+
+#### Ubuntu / Debian
+
+```bash
+# 安装
+sudo apt update
+sudo apt install redis-server
+
+# 启动
+sudo systemctl start redis
+sudo systemctl enable redis  # 开机自启
+```
+
+#### CentOS / RHEL
+
+```bash
+# 安装
+sudo yum install epel-release
+sudo yum install redis
+
+# 启动
+sudo systemctl start redis
+sudo systemctl enable redis
+```
+
+#### Docker（通用）
+
+```bash
+# 启动 Redis 容器
+docker run -d -p 6379:6379 --name redis-server redis:7-alpine
+
+# 验证运行状态
+docker ps | grep redis-server
+
+# 停止和启动
+docker stop redis-server
+docker start redis-server
+```
+
+#### 验证安装
+
+```bash
+# 检查 Redis 是否运行
+redis-cli ping
+# 预期输出: PONG
+
+# 或检查进程
+ps aux | grep redis
+```
+
+---
+
 ## 依赖说明
 
 ### 核心依赖
