@@ -282,6 +282,36 @@ async def main():
 asyncio.run(main())
 ```
 
+### MCP 工具依赖说明
+
+| 工具 | 查询方式 | Embedding 依赖 |
+|------|---------|---------------|
+| `query_for_development` | Redis 精确查询 | ❌ 不需要 |
+| `query_for_troubleshooting` | ChromaDB 向量查询 | ✅ 需要 |
+| `query_api` (精确) | ChromaDB 精确匹配 | ❌ 不需要 |
+| `query_api` (语义) | ChromaDB 向量查询 | ✅ 需要 |
+| `query_cross_platform` | SQLite 精确查询 | ❌ 不需要 |
+
+**Embedding 模型配置**：
+
+```env
+# 方式1: Qwen3-Embedding (默认, Apple Silicon MPS)
+EMBEDDING_EMBEDDER_TYPE=qwen
+EMBEDDING_DEVICE=mps  # 或 cuda/cpu
+
+# 方式2: Sentence Transformers
+EMBEDDING_EMBEDDER_TYPE=sentence_transformers
+EMBEDDING_MODEL_NAME=all-MiniLM-L6-v2
+
+# 方式3: Mock (仅精确查询, 无语义搜索)
+EMBEDDING_EMBEDDER_TYPE=mock
+```
+
+**无 Embedding 模型时的行为**：
+- 精确查询 (`api_name=`) 正常工作
+- 语义搜索 (`semantic_query=`) 返回空结果 + 警告
+- 建议 Agent 改用精确查询
+
 ### CLI 工具
 
 ```bash
