@@ -93,23 +93,29 @@ async def collect_cuda_apis(
     async with CUDADocScraper(headless=headless) as scraper:
         all_apis = []
 
-        # 采集 Warp Shuffle/Vote/Reduce APIs (所有 warp-level APIs)
-        logger.info(f"Collecting {len(WARP_SHUFFLE_APIS) + len(WARP_VOTE_APIS) + len(WARP_REDUCE_APIS)} warp-level APIs...")
-        warp_apis = await scraper.scrape_warp_shuffle_apis()
+        # 采集 Warp-level APIs (使用 fallback 避免浏览器超时)
+        logger.info(f"Collecting warp-level APIs from fallback...")
+        warp_apis = await scraper.scrape_warp_apis_fallback()
         all_apis.extend(warp_apis)
         logger.info(f"Collected {len(warp_apis)} warp-level APIs")
 
-        # 采集 Memory APIs
+        # 采集 Memory APIs (直接使用 fallback)
         logger.info(f"Collecting {len(MEMORY_APIS)} memory APIs...")
         memory_apis = await scraper.scrape_memory_apis()
         all_apis.extend(memory_apis)
         logger.info(f"Collected {len(memory_apis)} memory APIs")
 
-        # 采集 Thread Synchronization APIs
-        logger.info(f"Collecting {len(THREAD_SYNC_APIS)} thread sync APIs...")
+        # 采集 Thread Synchronization APIs (使用 fallback)
+        logger.info(f"Collecting thread sync APIs from fallback...")
         thread_sync_apis = await scraper.scrape_thread_sync_apis()
         all_apis.extend(thread_sync_apis)
         logger.info(f"Collected {len(thread_sync_apis)} thread sync APIs")
+
+        # 采集 Memory Fence APIs (使用 fallback)
+        logger.info(f"Collecting memory fence APIs from fallback...")
+        memory_fence_apis = await scraper.scrape_memory_fence_apis()
+        all_apis.extend(memory_fence_apis)
+        logger.info(f"Collected {len(memory_fence_apis)} memory fence APIs")
 
         # 采集 Memory Fence APIs
         logger.info(f"Collecting {len(MEMORY_FENCE_APIS)} memory fence APIs...")
