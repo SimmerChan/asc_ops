@@ -18,6 +18,7 @@ class CollectionType(Enum):
     BUG_FIXES = "bug_fixes"
     OPTIMIZATIONS = "optimizations"
     CROSS_PLATFORM_MAPPINGS = "cross_platform_mappings"
+    GPU_APIS = "gpu_apis"  # GPU API 知识库（CUDA/CUB/CUTLASS 等）
 
 
 # Collection 配置映射
@@ -67,6 +68,19 @@ COLLECTION_CONFIGS: dict[CollectionType, dict] = {
             "description": "GPU-NPU 跨平台映射知识库",
             "version": "1.0",
             "knowledge_type": "cross_platform_mapping",
+        },
+        "index_params": {
+            "hnsw_space_type": "cosine",
+            "hnsw_construction_ef": 100,
+            "hnsw_search_ef": 100,
+        },
+    },
+    CollectionType.GPU_APIS: {
+        "name": "gpu_apis",
+        "metadata": {
+            "description": "GPU API 知识库（CUDA/CUB/CUTLASS 等）",
+            "version": "1.0",
+            "knowledge_type": "gpu_api",
         },
         "index_params": {
             "hnsw_space_type": "cosine",

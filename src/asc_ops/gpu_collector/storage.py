@@ -165,6 +165,49 @@ class GPUStorage:
             logger.error(f"Failed to store API: {e}")
             raise GPUStorageError(f"API storage failed: {e}")
 
+    def store_api_with_embedding(
+        self,
+        api: GPUAPIInfo,
+        embedder=None,
+    ) -> bool:
+        """
+        存储 GPU API 信息（带 embedding 向量）
+
+        Args:
+            api: GPUAPIInfo 对象，需包含 description 和 description_embedding
+            embedder: 可选 embedder，用于生成 description_embedding
+
+        Returns:
+            是否存储成功
+        """
+        try:
+            if self._use_mock:
+                self._api_store[api.api_id] = api
+                logger.debug(f"Stored API with embedding (mock): {api.api_id}")
+                return True
+
+            # 如果没有 embedding 但有 embedder，则生成
+            if api.description_embedding is None and embedder is not None:
+                api.description_embedding = embedder.encode(api.description)
+
+            # ChromaDB 存储（带 embedding）
+            metadata = {
+                "api_name": api.api_name,
+                "platform": api.platform.value,
+                "category": api.category,
+            }
+            self._apis_collection.upsert(
+                ids=[api.api_id],
+                metadatas=[metadata],
+                documents=[api.description],
+                embeddings=[api.description_embedding] if api.description_embedding else None,
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to store API with embedding: {e}")
+            raise GPUStorageError(f"API with embedding storage failed: {e}")
+
     def store_mapping(self, mapping: CrossPlatformMapping) -> bool:
         """存储跨平台映射"""
         try:
@@ -272,6 +315,42 @@ class GPUStorage:
         """获取 GPU API"""
         if self._use_mock:
             return self._api_store.get(api_id)
+        return None
+
+    def get_api_by_name(self, api_name: str) -> Optional[GPUAPIInfo]:
+        """
+        根据 API 名称精确查找 GPU API
+
+        Args:
+            api_name: API 名称（如 "cudaMalloc"）
+
+        Returns:
+            GPUAPIInfo 或 None
+        """
+        if self._use_mock:
+            for api in self._api_store.values():
+                if api.api_name.lower() == api_name.lower():
+                    return api
+            return None
+
+        # ChromaDB 精确查询
+        results = self._apis_collection.get(
+            where={"api_name": api_name},
+        )
+        if results and results["ids"]:
+            # 重建 GPUAPIInfo 对象
+            doc = results["documents"][0] if results["documents"] else ""
+            meta = results["metadatas"][0] if results["metadatas"] else {}
+            embedding = results["embeddings"][0] if results.get("embeddings") else None
+            from .models import GPUPlatform
+            return GPUAPIInfo(
+                api_id=results["ids"][0],
+                api_name=meta.get("api_name", ""),
+                platform=GPUPlatform(meta.get("platform", "cuda")),
+                description=doc,
+                description_embedding=embedding,
+                category=meta.get("category", ""),
+            )
         return None
 
     def get_mapping(self, gpu_api: str) -> Optional[CrossPlatformMapping]:

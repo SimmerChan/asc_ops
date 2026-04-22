@@ -97,6 +97,7 @@ class GPUAPIInfo:
 
     full_signature: str = ""
     description: str = ""
+    description_embedding: Optional[List[float]] = None  # 语义描述向量，用于向量检索
 
     parameters: List[str] = field(default_factory=list)
     return_type: str = ""
