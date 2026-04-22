@@ -51,10 +51,13 @@ WARP_SHUFFLE_APIS = [
 ]
 
 # Warp Vote 函数
+# Source: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-vote-functions
 WARP_VOTE_APIS = [
     "__all_sync",
     "__any_sync",
     "__uni_sync",
+    "__all",  # deprecated legacy API
+    "__any",  # deprecated legacy API
 ]
 
 # Warp Reduce 函数
@@ -69,37 +72,88 @@ WARP_REDUCE_APIS = [
 ]
 
 # CUDA Memory Management APIs
+# Source: https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html
 MEMORY_APIS = [
+    # Allocation
     "cudaMalloc",
     "cudaMallocHost",
+    "cudaMallocManaged",
     "cudaMallocPitch",
     "cudaMallocArray",
+    "cudaMalloc3D",
+    "cudaMalloc3DArray",
+    "cudaMallocMipmappedArray",
+    # Free
     "cudaFree",
     "cudaFreeHost",
+    "cudaFreeArray",
+    "cudaFreeMipmappedArray",
+    # Host Memory
+    "cudaHostAlloc",
+    "cudaHostRegister",
+    "cudaHostUnregister",
+    # Copy
     "cudaMemcpy",
     "cudaMemcpyAsync",
+    "cudaMemcpy2D",
+    "cudaMemcpy2DAsync",
+    "cudaMemcpy3D",
+    "cudaMemcpy3DAsync",
+    "cudaMemcpyPeer",
+    "cudaMemcpyPeerAsync",
     "cudaMemcpyToSymbol",
+    "cudaMemcpyFromSymbol",
     "cudaMemcpyToSymbolAsync",
+    "cudaMemcpyFromSymbolAsync",
+    # Memory Set
     "cudaMemset",
     "cudaMemsetAsync",
+    "cudaMemset2D",
+    "cudaMemset2DAsync",
+    "cudaMemset3D",
+    "cudaMemset3DAsync",
+    # Query/Management
+    "cudaMemGetInfo",
+    "cudaMemAdvise",
+    "cudaMemPrefetchAsync",
 ]
 
 # CUDA Stream Management APIs
+# Source: https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html
 STREAM_APIS = [
     "cudaStreamCreate",
     "cudaStreamCreateWithFlags",
+    "cudaStreamCreateWithPriority",
     "cudaStreamDestroy",
     "cudaStreamSynchronize",
     "cudaStreamWaitEvent",
     "cudaStreamAddCallback",
+    "cudaStreamQuery",
+    "cudaStreamBeginCapture",
+    "cudaStreamEndCapture",
+    "cudaStreamIsCapturing",
+    "cudaStreamAttachMemAsync",
+    "cudaStreamGetCaptureInfo",
+    "cudaStreamGetDevice",
+    "cudaStreamGetFlags",
+    "cudaStreamGetId",
+    "cudaStreamGetPriority",
+    "cudaStreamSetAttribute",
+    "cudaStreamGetAttribute",
+    "cudaStreamCopyAttributes",
+    "cudaStreamUpdateCaptureDependencies",
+    "cudaThreadExchangeStreamCaptureMode",
+    "cudaCtxResetPersistingL2Cache",
 ]
 
 # CUDA Event APIs
+# Source: https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html
 EVENT_APIS = [
     "cudaEventCreate",
     "cudaEventCreateWithFlags",
     "cudaEventDestroy",
     "cudaEventRecord",
+    "cudaEventRecordWithFlags",
     "cudaEventQuery",
     "cudaEventSynchronize",
     "cudaEventElapsedTime",
@@ -121,18 +175,43 @@ MEMORY_FENCE_APIS = [
 ]
 
 # CUDA Device Management APIs
+# Source: https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html
 DEVICE_APIS = [
+    # Selection and Initialization
     "cudaChooseDevice",
     "cudaGetDevice",
     "cudaSetDevice",
     "cudaGetDeviceCount",
+    "cudaGetDeviceFlags",
     "cudaGetDeviceProperties",
-    "cudaDeviceSynchronize",
-    "cudaDeviceReset",
+    "cudaInitDevice",
+    "cudaSetDeviceFlags",
+    "cudaSetValidDevices",
+    # Device Attributes
+    "cudaDeviceGetAttribute",
+    "cudaDeviceGetByPCIBusId",
+    "cudaDeviceGetPCIBusId",
+    "cudaDeviceGetStreamPriorityRange",
+    # Cache and Memory Configuration
     "cudaDeviceGetCacheConfig",
     "cudaDeviceSetCacheConfig",
+    "cudaDeviceGetDefaultMemPool",
+    "cudaDeviceGetMemPool",
+    "cudaDeviceSetMemPool",
+    # Limits
     "cudaDeviceGetLimit",
     "cudaDeviceSetLimit",
+    "cudaDeviceSynchronize",
+    "cudaDeviceFlushGPUDirectRDMAWrites",
+    # IPC
+    "cudaIpcCloseMemHandle",
+    "cudaIpcGetEventHandle",
+    "cudaIpcGetMemHandle",
+    "cudaIpcOpenEventHandle",
+    "cudaIpcOpenMemHandle",
+    # Peer-to-Peer
+    "cudaDeviceGetP2PAttribute",
+    "cudaDeviceReset",
 ]
 
 # CUDA Execution Control APIs
