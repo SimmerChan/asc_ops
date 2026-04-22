@@ -351,9 +351,9 @@ class CUDADocScraper:
 
     async def scrape_warp_apis_fallback(self) -> List[CUDAAPIScrapedData]:
         """
-        直接使用 fallback 数据采集所有 Warp-level APIs（跳过浏览器）
+        直接使用 fallback 数据采集 Warp Shuffle/Vote/Reduce/Match APIs（跳过浏览器）
 
-        用于当浏览器抓取超时时快速采集所有 warp-level APIs
+        注意：不包含 Thread Sync 和 Memory Fence，它们需要单独采集
 
         Returns:
             CUDAAPIScrapedData 列表
@@ -369,21 +369,7 @@ class CUDADocScraper:
             else:
                 logger.warning(f"No fallback for warp API: {api_name}")
 
-        # Thread sync APIs
-        for api_name in THREAD_SYNC_APIS:
-            fallback = self._get_fallback_thread_sync_api_data(api_name)
-            if fallback:
-                apis.append(fallback)
-                logger.debug(f"Used fallback for thread sync API: {api_name}")
-
-        # Memory fence APIs
-        for api_name in MEMORY_FENCE_APIS:
-            fallback = self._get_fallback_memory_fence_api_data(api_name)
-            if fallback:
-                apis.append(fallback)
-                logger.debug(f"Used fallback for memory fence API: {api_name}")
-
-        logger.info(f"Collected {len(apis)} warp-level APIs from fallback")
+        logger.info(f"Collected {len(apis)} warp shuffle/vote/reduce/match APIs from fallback")
         return apis
 
     async def _extract_api_from_page(self, api_name: str) -> Optional[CUDAAPIScrapedData]:

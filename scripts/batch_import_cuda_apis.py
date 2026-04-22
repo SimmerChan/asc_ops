@@ -117,12 +117,6 @@ async def collect_cuda_apis(
         all_apis.extend(memory_fence_apis)
         logger.info(f"Collected {len(memory_fence_apis)} memory fence APIs")
 
-        # 采集 Memory Fence APIs
-        logger.info(f"Collecting {len(MEMORY_FENCE_APIS)} memory fence APIs...")
-        memory_fence_apis = await scraper.scrape_memory_fence_apis()
-        all_apis.extend(memory_fence_apis)
-        logger.info(f"Collected {len(memory_fence_apis)} memory fence APIs")
-
         # 采集 Stream APIs
         logger.info(f"Collecting {len(STREAM_APIS)} stream APIs...")
         stream_apis = await scraper.scrape_stream_apis()
@@ -146,12 +140,6 @@ async def collect_cuda_apis(
         execution_apis = await scraper.scrape_execution_apis()
         all_apis.extend(execution_apis)
         logger.info(f"Collected {len(execution_apis)} execution APIs")
-
-        # 采集 Warp Match APIs
-        logger.info(f"Collecting {len(WARP_MATCH_APIS)} warp match APIs...")
-        warp_match_apis = await scraper.scrape_warp_match_apis()
-        all_apis.extend(warp_match_apis)
-        logger.info(f"Collected {len(warp_match_apis)} warp match APIs")
 
         logger.info(f"Total collected: {len(all_apis)} APIs")
         return all_apis
