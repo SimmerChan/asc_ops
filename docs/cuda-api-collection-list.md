@@ -14,6 +14,25 @@
 
 ---
 
+## Summary
+
+| Category | Count | Status |
+|----------|-------|--------|
+| Warp Shuffle | 4 | ✅ Complete |
+| Warp Vote | 5 | ✅ Complete |
+| Warp Reduce | 7 | ✅ Complete |
+| Warp Match | 2 | ✅ Complete |
+| Thread Sync | 4 | ✅ Complete |
+| Memory Fence | 3 | ✅ Complete |
+| Memory Management | 37 | ✅ Complete |
+| Stream Management | 23 | ✅ Complete |
+| Event Management | 8 | ✅ Complete |
+| Device Management | 29 | ✅ Complete |
+| Execution Control | 4 | ✅ Complete |
+| **TOTAL** | **125** | **100%** |
+
+---
+
 ## 1. Warp-Level Intrinsics (SIMD-like Operations)
 
 ### 1.1 Warp Shuffle Functions
@@ -93,67 +112,67 @@
 
 | API Name | Status |
 |----------|--------|
-| `cudaMalloc` | ✅ Collected |
-| `cudaMallocHost` | ✅ Collected |
-| `cudaMallocManaged` | ✅ Collected |
-| `cudaMallocPitch` | ✅ Collected |
-| `cudaMallocArray` | ✅ Collected |
-| `cudaMalloc3D` | ✅ Collected |
-| `cudaMalloc3DArray` | ✅ Collected |
-| `cudaMallocMipmappedArray` | ✅ Collected |
+| `cudaMalloc` | ✅ |
+| `cudaMallocHost` | ✅ |
+| `cudaMallocManaged` | ✅ |
+| `cudaMallocPitch` | ✅ |
+| `cudaMallocArray` | ✅ |
+| `cudaMalloc3D` | ✅ |
+| `cudaMalloc3DArray` | ✅ |
+| `cudaMallocMipmappedArray` | ✅ |
 
 ### 4.2 Memory Deallocation (4)
 
 | API Name | Status |
 |----------|--------|
-| `cudaFree` | ✅ Collected |
-| `cudaFreeHost` | ✅ Collected |
-| `cudaFreeArray` | ✅ Collected |
-| `cudaFreeMipmappedArray` | ✅ Collected |
+| `cudaFree` | ✅ |
+| `cudaFreeHost` | ✅ |
+| `cudaFreeArray` | ✅ |
+| `cudaFreeMipmappedArray` | ✅ |
 
 ### 4.3 Host Memory (3)
 
 | API Name | Status |
 |----------|--------|
-| `cudaHostAlloc` | ✅ Collected |
-| `cudaHostRegister` | ✅ Collected |
-| `cudaHostUnregister` | ✅ Collected |
+| `cudaHostAlloc` | ✅ |
+| `cudaHostRegister` | ✅ |
+| `cudaHostUnregister` | ✅ |
 
 ### 4.4 Memory Copy (12)
 
 | API Name | Status |
 |----------|--------|
-| `cudaMemcpy` | ✅ Collected |
-| `cudaMemcpyAsync` | ✅ Collected |
-| `cudaMemcpy2D` | ✅ Collected |
-| `cudaMemcpy2DAsync` | ✅ Collected |
-| `cudaMemcpy3D` | ✅ Collected |
-| `cudaMemcpy3DAsync` | ✅ Collected |
-| `cudaMemcpyPeer` | ✅ Collected |
-| `cudaMemcpyPeerAsync` | ✅ Collected |
-| `cudaMemcpyToSymbol` | ✅ Collected |
-| `cudaMemcpyFromSymbol` | ✅ Collected |
-| `cudaMemcpyToSymbolAsync` | ✅ Collected |
-| `cudaMemcpyFromSymbolAsync` | ✅ Collected |
+| `cudaMemcpy` | ✅ |
+| `cudaMemcpyAsync` | ✅ |
+| `cudaMemcpy2D` | ✅ |
+| `cudaMemcpy2DAsync` | ✅ |
+| `cudaMemcpy3D` | ✅ |
+| `cudaMemcpy3DAsync` | ✅ |
+| `cudaMemcpyPeer` | ✅ |
+| `cudaMemcpyPeerAsync` | ✅ |
+| `cudaMemcpyToSymbol` | ✅ |
+| `cudaMemcpyFromSymbol` | ✅ |
+| `cudaMemcpyToSymbolAsync` | ✅ |
+| `cudaMemcpyFromSymbolAsync` | ✅ |
 
 ### 4.5 Memory Set (6)
 
 | API Name | Status |
 |----------|--------|
-| `cudaMemset` | ✅ Collected |
-| `cudaMemsetAsync` | ✅ Collected |
-| `cudaMemset2D` | ✅ Collected |
-| `cudaMemset2DAsync` | ✅ Collected |
-| `cudaMemset3D` | ✅ Collected |
-| `cudaMemset3DAsync` | ✅ Collected |
+| `cudaMemset` | ✅ |
+| `cudaMemsetAsync` | ✅ |
+| `cudaMemset2D` | ✅ |
+| `cudaMemset2DAsync` | ✅ |
+| `cudaMemset3D` | ✅ |
+| `cudaMemset3DAsync` | ✅ |
 
 ### 4.6 Memory Query/Management (3)
 
 | API Name | Status |
 |----------|--------|
-| `cudaMemGetInfo` | ✅ Collected |
-| `cudaMemAdvise` | ✅ Collected |
-| `cudaMemPrefetchAsync` | ✅ Collected |
+| `cudaMemGetInfo` | ✅ |
+| `cudaMemAdvise` | ✅ |
+| `cudaMemPrefetchAsync` | ✅ |
 
 ---
 
@@ -163,29 +182,29 @@
 
 | API Name | Status |
 |----------|--------|
-| `cudaStreamCreate` | ✅ Collected |
-| `cudaStreamCreateWithFlags` | ✅ Collected |
-| `cudaStreamCreateWithPriority` | ✅ Collected |
-| `cudaStreamDestroy` | ✅ Collected |
-| `cudaStreamSynchronize` | ✅ Collected |
-| `cudaStreamWaitEvent` | ✅ Collected |
-| `cudaStreamAddCallback` | ✅ Collected |
-| `cudaStreamQuery` | ✅ Collected |
-| `cudaStreamBeginCapture` | ✅ Collected |
-| `cudaStreamEndCapture` | ✅ Collected |
-| `cudaStreamIsCapturing` | ✅ Collected |
-| `cudaStreamAttachMemAsync` | ✅ Collected |
-| `cudaStreamGetCaptureInfo` | ✅ Collected |
-| `cudaStreamGetDevice` | ✅ Collected |
-| `cudaStreamGetFlags` | ✅ Collected |
-| `cudaStreamGetId` | ✅ Collected |
-| `cudaStreamGetPriority` | ✅ Collected |
-| `cudaStreamSetAttribute` | ✅ Collected |
-| `cudaStreamGetAttribute` | ✅ Collected |
-| `cudaStreamCopyAttributes` | ✅ Collected |
-| `cudaStreamUpdateCaptureDependencies` | ✅ Collected |
-| `cudaThreadExchangeStreamCaptureMode` | ✅ Collected |
-| `cudaCtxResetPersistingL2Cache` | ✅ Collected |
+| `cudaStreamCreate` | ✅ |
+| `cudaStreamCreateWithFlags` | ✅ |
+| `cudaStreamCreateWithPriority` | ✅ |
+| `cudaStreamDestroy` | ✅ |
+| `cudaStreamSynchronize` | ✅ |
+| `cudaStreamWaitEvent` | ✅ |
+| `cudaStreamAddCallback` | ✅ |
+| `cudaStreamQuery` | ✅ |
+| `cudaStreamBeginCapture` | ✅ |
+| `cudaStreamEndCapture` | ✅ |
+| `cudaStreamIsCapturing` | ✅ |
+| `cudaStreamAttachMemAsync` | ✅ |
+| `cudaStreamGetCaptureInfo` | ✅ |
+| `cudaStreamGetDevice` | ✅ |
+| `cudaStreamGetFlags` | ✅ |
+| `cudaStreamGetId` | ✅ |
+| `cudaStreamGetPriority` | ✅ |
+| `cudaStreamSetAttribute` | ✅ |
+| `cudaStreamGetAttribute` | ✅ |
+| `cudaStreamCopyAttributes` | ✅ |
+| `cudaStreamUpdateCaptureDependencies` | ✅ |
+| `cudaThreadExchangeStreamCaptureMode` | ✅ |
+| `cudaCtxResetPersistingL2Cache` | ✅ |
 
 ---
 
@@ -195,14 +214,14 @@
 
 | API Name | Status |
 |----------|--------|
-| `cudaEventCreate` | ✅ Collected |
-| `cudaEventCreateWithFlags` | ✅ Collected |
-| `cudaEventDestroy` | ✅ Collected |
-| `cudaEventRecord` | ✅ Collected |
-| `cudaEventRecordWithFlags` | ✅ Collected |
-| `cudaEventQuery` | ✅ Collected |
-| `cudaEventSynchronize` | ✅ Collected |
-| `cudaEventElapsedTime` | ✅ Collected |
+| `cudaEventCreate` | ✅ |
+| `cudaEventCreateWithFlags` | ✅ |
+| `cudaEventDestroy` | ✅ |
+| `cudaEventRecord` | ✅ |
+| `cudaEventRecordWithFlags` | ✅ |
+| `cudaEventQuery` | ✅ |
+| `cudaEventSynchronize` | ✅ |
+| `cudaEventElapsedTime` | ✅ |
 
 ---
 
@@ -214,59 +233,60 @@
 
 | API Name | Status |
 |----------|--------|
-| `cudaChooseDevice` | ✅ Collected |
-| `cudaGetDevice` | ✅ Collected |
-| `cudaSetDevice` | ✅ Collected |
-| `cudaGetDeviceCount` | ✅ Collected |
-| `cudaGetDeviceFlags` | ✅ Collected |
-| `cudaGetDeviceProperties` | ✅ Collected |
-| `cudaInitDevice` | ✅ Collected |
-| `cudaSetDeviceFlags` | ✅ Collected |
-| `cudaSetValidDevices` | ✅ Collected |
+| `cudaChooseDevice` | ✅ |
+| `cudaGetDevice` | ✅ |
+| `cudaSetDevice` | ✅ |
+| `cudaGetDeviceCount` | ✅ |
+| `cudaGetDeviceFlags` | ✅ |
+| `cudaGetDeviceProperties` | ✅ |
+| `cudaInitDevice` | ✅ |
+| `cudaSetDeviceFlags` | ✅ |
+| `cudaSetValidDevices` | ✅ |
 
-### 7.2 Device Attributes (5)
+### 7.2 Device Attributes (4)
 
 | API Name | Status |
 |----------|--------|
-| `cudaDeviceGetAttribute` | ✅ Collected |
-| `cudaDeviceGetByPCIBusId` | ✅ Collected |
-| `cudaDeviceGetPCIBusId` | ✅ Collected |
-| `cudaDeviceGetStreamPriorityRange` | ✅ Collected |
+| `cudaDeviceGetAttribute` | ✅ |
+| `cudaDeviceGetByPCIBusId` | ✅ |
+| `cudaDeviceGetPCIBusId` | ✅ |
+| `cudaDeviceGetStreamPriorityRange` | ✅ |
 
 ### 7.3 Cache and Memory Configuration (5)
 
 | API Name | Status |
 |----------|--------|
-| `cudaDeviceGetCacheConfig` | ✅ Collected |
-| `cudaDeviceSetCacheConfig` | ✅ Collected |
-| `cudaDeviceGetDefaultMemPool` | ✅ Collected |
-| `cudaDeviceGetMemPool` | ✅ Collected |
-| `cudaDeviceSetMemPool` | ✅ Collected |
+| `cudaDeviceGetCacheConfig` | ✅ |
+| `cudaDeviceSetCacheConfig` | ✅ |
+| `cudaDeviceGetDefaultMemPool` | ✅ |
+| `cudaDeviceGetMemPool` | ✅ |
+| `cudaDeviceSetMemPool` | ✅ |
 
-### 7.4 Limits (3)
+### 7.4 Limits and Synchronization (3)
 
 | API Name | Status |
 |----------|--------|
-| `cudaDeviceGetLimit` | ✅ Collected |
-| `cudaDeviceSetLimit` | ✅ Collected |
-| `cudaDeviceSynchronize` | ✅ Collected |
+| `cudaDeviceGetLimit` | ✅ |
+| `cudaDeviceSetLimit` | ✅ |
+| `cudaDeviceSynchronize` | ✅ |
 
 ### 7.5 IPC (5)
 
 | API Name | Status |
 |----------|--------|
-| `cudaIpcCloseMemHandle` | ✅ Collected |
-| `cudaIpcGetEventHandle` | ✅ Collected |
-| `cudaIpcGetMemHandle` | ✅ Collected |
-| `cudaIpcOpenEventHandle` | ✅ Collected |
-| `cudaIpcOpenMemHandle` | ✅ Collected |
+| `cudaIpcCloseMemHandle` | ✅ |
+| `cudaIpcGetEventHandle` | ✅ |
+| `cudaIpcGetMemHandle` | ✅ |
+| `cudaIpcOpenEventHandle` | ✅ |
+| `cudaIpcOpenMemHandle` | ✅ |
 
-### 7.6 Peer-to-Peer and Other (2)
+### 7.6 Peer-to-Peer and Other (3)
 
 | API Name | Status |
 |----------|--------|
-| `cudaDeviceGetP2PAttribute` | ✅ Collected |
-| `cudaDeviceReset` | ✅ Collected |
+| `cudaDeviceGetP2PAttribute` | ✅ |
+| `cudaDeviceFlushGPUDirectRDMAWrites` | ✅ |
+| `cudaDeviceReset` | ✅ |
 
 ---
 
@@ -276,43 +296,14 @@
 
 | API Name | Status |
 |----------|--------|
-| `cudaConfigureCall` | ✅ Collected |
-| `cudaLaunchKernel` | ✅ Collected |
-| `cudaLaunchCooperativeKernel` | ✅ Collected |
-| `cudaLaunchCooperativeKernelMultiDevice` | ✅ Collected |
+| `cudaConfigureCall` | ✅ |
+| `cudaLaunchKernel` | ✅ |
+| `cudaLaunchCooperativeKernel` | ✅ |
+| `cudaLaunchCooperativeKernelMultiDevice` | ✅ |
 
 ---
 
-## Summary
-
-### API Counts by Category
-
-| Category | Count | Status |
-|----------|-------|--------|
-| Warp Shuffle | 4 | ✅ Complete |
-| Warp Vote | 5 | ✅ Complete |
-| Warp Reduce | 7 | ✅ Complete |
-| Warp Match | 2 | ✅ Complete |
-| Thread Sync | 4 | ✅ Complete |
-| Memory Fence | 3 | ✅ Complete |
-| Memory Allocation | 9 | ✅ Complete |
-| Memory Deallocation | 4 | ✅ Complete |
-| Host Memory | 3 | ✅ Complete |
-| Memory Copy | 12 | ✅ Complete |
-| Memory Set | 6 | ✅ Complete |
-| Memory Management | 3 | ✅ Complete |
-| Stream APIs | 23 | ✅ Complete |
-| Event APIs | 8 | ✅ Complete |
-| Device Selection/Init | 9 | ✅ Complete |
-| Device Attributes | 5 | ✅ Complete |
-| Cache/Memory Config | 5 | ✅ Complete |
-| Device Limits | 3 | ✅ Complete |
-| IPC | 5 | ✅ Complete |
-| Peer-to-Peer/Other | 2 | ✅ Complete |
-| Execution Control | 4 | ✅ Complete |
-| **TOTAL** | **125** | **100%** |
-
-### Data Sources
+## Data Sources
 
 - **CUDA Runtime API**: https://docs.nvidia.com/cuda/cuda-runtime-api/index.html
 - **CUDA Programming Guide**: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html
