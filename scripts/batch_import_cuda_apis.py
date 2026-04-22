@@ -23,10 +23,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
-# 添加项目根目录到路径
+# 添加 src 目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from src.asc_ops.gpu_collector.doc_scraper import (
+from asc_ops.gpu_collector.doc_scraper import (
     CUDADocScraper,
     CUDAAPIScrapedData,
     WARP_SHUFFLE_APIS,
@@ -35,15 +35,17 @@ from src.asc_ops.gpu_collector.doc_scraper import (
     MEMORY_APIS,
     THREAD_SYNC_APIS,
     MEMORY_FENCE_APIS,
+    STREAM_APIS,
+    EVENT_APIS,
 )
-from src.asc_ops.gpu_collector.llm_semantic_analyzer import (
+from asc_ops.gpu_collector.llm_semantic_analyzer import (
     CUDASemanticAnalyzer,
     SemanticAnalysisResult,
     BatchAnalysisResult,
 )
-from src.asc_ops.gpu_collector.models import GPUAPIInfo, GPUPlatform
-from src.asc_ops.gpu_collector.storage import GPUStorage
-from src.asc_ops.llm import UnifiedLLMClient
+from asc_ops.gpu_collector.models import GPUAPIInfo, GPUPlatform
+from asc_ops.gpu_collector.storage import GPUStorage
+from asc_ops.llm import UnifiedLLMClient
 
 logging.basicConfig(
     level=logging.INFO,
@@ -112,10 +114,17 @@ async def collect_cuda_apis(
         all_apis.extend(memory_fence_apis)
         logger.info(f"Collected {len(memory_fence_apis)} memory fence APIs")
 
-        logger.info(f"Total collected: {len(all_apis)} APIs")
-        return all_apis
-        all_apis.extend(memory_apis)
-        logger.info(f"Collected {len(memory_apis)} memory APIs")
+        # 采集 Stream APIs
+        logger.info(f"Collecting {len(STREAM_APIS)} stream APIs...")
+        stream_apis = await scraper.scrape_stream_apis()
+        all_apis.extend(stream_apis)
+        logger.info(f"Collected {len(stream_apis)} stream APIs")
+
+        # 采集 Event APIs
+        logger.info(f"Collecting {len(EVENT_APIS)} event APIs...")
+        event_apis = await scraper.scrape_event_apis()
+        all_apis.extend(event_apis)
+        logger.info(f"Collected {len(event_apis)} event APIs")
 
         logger.info(f"Total collected: {len(all_apis)} APIs")
         return all_apis
@@ -209,7 +218,7 @@ def import_apis_to_storage(
 
             # 生成 embedding
             if embedder and api.description:
-                api.description_embedding = embedder.encode(api.description)
+                api.description_embedding = embedder.encode_api(api.description)
 
             # 存储
             if embedder:
@@ -365,8 +374,13 @@ async def run_full_pipeline(
     # 如果没有 embedder，导入将只存储文本描述
     embedder = None
     try:
-        from src.asc_ops.llm.embedder import QwenEmbedder
-        embedder = QwenEmbedder.from_env()
+        from asc_ops.collector.embedder import QwenEmbedder
+        embedder = QwenEmbedder(
+            model_name="Qwen/Qwen3-Embedding-0.6B",
+            embedding_dim=1024,
+            batch_size=8,
+            device="mps",  # Apple Silicon
+        )
         logger.info("Embedder initialized")
     except Exception as e:
         logger.warning(f"Failed to initialize embedder: {e}")
