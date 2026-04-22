@@ -105,6 +105,21 @@ EVENT_APIS = [
     "cudaEventElapsedTime",
 ]
 
+# Thread Synchronization APIs
+THREAD_SYNC_APIS = [
+    "__syncthreads",
+    "__syncthreads_count",
+    "__syncthreads_and",
+    "__syncthreads_or",
+]
+
+# Memory Fence APIs
+MEMORY_FENCE_APIS = [
+    "__threadfence",
+    "__threadfence_block",
+    "__threadfence_system",
+]
+
 # 分类映射
 API_CATEGORY_MAPPING: Dict[str, tuple[str, str]] = {
     # Warp Shuffle
@@ -464,6 +479,46 @@ class CUDADocScraper:
                 return_type="T",
                 documentation_url=f"{WARP_SHUFFLE_BASE_URL}#warp-reduce-functions",
             ),
+            "__reduce_mul_sync": CUDAAPIScrapedData(
+                api_name="__reduce_mul_sync",
+                full_signature="T __reduce_mul_sync(unsigned mask, T var)",
+                description="Synchronous warp-level MUL reduction. Computes product of var across all threads in the warp.",
+                category="warp-reduce",
+                subcategory="reduce",
+                parameters=["unsigned mask", "T var"],
+                return_type="T",
+                documentation_url=f"{WARP_SHUFFLE_BASE_URL}#warp-reduce-functions",
+            ),
+            "__reduce_and_sync": CUDAAPIScrapedData(
+                api_name="__reduce_and_sync",
+                full_signature="T __reduce_and_sync(unsigned mask, T var)",
+                description="Synchronous warp-level AND reduction. Computes bitwise AND of var across all threads in the warp.",
+                category="warp-reduce",
+                subcategory="reduce",
+                parameters=["unsigned mask", "T var"],
+                return_type="T",
+                documentation_url=f"{WARP_SHUFFLE_BASE_URL}#warp-reduce-functions",
+            ),
+            "__reduce_or_sync": CUDAAPIScrapedData(
+                api_name="__reduce_or_sync",
+                full_signature="T __reduce_or_sync(unsigned mask, T var)",
+                description="Synchronous warp-level OR reduction. Computes bitwise OR of var across all threads in the warp.",
+                category="warp-reduce",
+                subcategory="reduce",
+                parameters=["unsigned mask", "T var"],
+                return_type="T",
+                documentation_url=f"{WARP_SHUFFLE_BASE_URL}#warp-reduce-functions",
+            ),
+            "__reduce_xor_sync": CUDAAPIScrapedData(
+                api_name="__reduce_xor_sync",
+                full_signature="T __reduce_xor_sync(unsigned mask, T var)",
+                description="Synchronous warp-level XOR reduction. Computes bitwise XOR of var across all threads in the warp.",
+                category="warp-reduce",
+                subcategory="reduce",
+                parameters=["unsigned mask", "T var"],
+                return_type="T",
+                documentation_url=f"{WARP_SHUFFLE_BASE_URL}#warp-reduce-functions",
+            ),
         }
 
         return fallback_data.get(api_name)
@@ -480,7 +535,160 @@ class CUDADocScraper:
             fallback = self._get_fallback_memory_api_data(api_name)
             if fallback:
                 apis.append(fallback)
+                logger.info(f"Using fallback data for memory API: {api_name}")
+            else:
+                logger.warning(f"No fallback data for memory API: {api_name}")
         return apis
+
+    async def scrape_thread_sync_apis(self) -> List[CUDAAPIScrapedData]:
+        """
+        采集 CUDA Thread Synchronization API 信息
+
+        Returns:
+            CUDAAPIScrapedData 列表
+        """
+        apis = []
+        for api_name in THREAD_SYNC_APIS:
+            fallback = self._get_fallback_thread_sync_api_data(api_name)
+            if fallback:
+                apis.append(fallback)
+                logger.info(f"Using fallback data for thread sync API: {api_name}")
+            else:
+                logger.warning(f"No fallback data for thread sync API: {api_name}")
+        return apis
+
+    async def scrape_memory_fence_apis(self) -> List[CUDAAPIScrapedData]:
+        """
+        采集 CUDA Memory Fence API 信息
+
+        Returns:
+            CUDAAPIScrapedData 列表
+        """
+        apis = []
+        for api_name in MEMORY_FENCE_APIS:
+            fallback = self._get_fallback_memory_fence_api_data(api_name)
+            if fallback:
+                apis.append(fallback)
+                logger.info(f"Using fallback data for memory fence API: {api_name}")
+            else:
+                logger.warning(f"No fallback data for memory fence API: {api_name}")
+        return apis
+
+    async def scrape_stream_apis(self) -> List[CUDAAPIScrapedData]:
+        """
+        采集 CUDA Stream Management API 信息
+
+        Returns:
+            CUDAAPIScrapedData 列表
+        """
+        apis = []
+        for api_name in STREAM_APIS:
+            fallback = self._get_fallback_memory_api_data(api_name)  # Same fallback dict for stream APIs
+            if fallback:
+                apis.append(fallback)
+                logger.info(f"Using fallback data for stream API: {api_name}")
+            else:
+                logger.warning(f"No fallback data for stream API: {api_name}")
+        return apis
+
+    async def scrape_event_apis(self) -> List[CUDAAPIScrapedData]:
+        """
+        采集 CUDA Event Management API 信息
+
+        Returns:
+            CUDAAPIScrapedData 列表
+        """
+        apis = []
+        for api_name in EVENT_APIS:
+            fallback = self._get_fallback_memory_api_data(api_name)  # Same fallback dict
+            if fallback:
+                apis.append(fallback)
+                logger.info(f"Using fallback data for event API: {api_name}")
+            else:
+                logger.warning(f"No fallback data for event API: {api_name}")
+        return apis
+
+    def _get_fallback_thread_sync_api_data(self, api_name: str) -> Optional[CUDAAPIScrapedData]:
+        """获取线程同步 API 的预定义数据"""
+        fallback_data = {
+            "__syncthreads": CUDAAPIScrapedData(
+                api_name="__syncthreads",
+                full_signature="void __syncthreads()",
+                description="Synchronizes all threads in a block. Used to ensure memory writes are visible between threads before proceeding.",
+                category="thread-synchronization",
+                subcategory="barrier",
+                parameters=[],
+                return_type="void",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions",
+            ),
+            "__syncthreads_count": CUDAAPIScrapedData(
+                api_name="__syncthreads_count",
+                full_signature="int __syncthreads_count(int predicate)",
+                description="Synchronizes all threads and returns the number of threads for which predicate is non-zero.",
+                category="thread-synchronization",
+                subcategory="barrier",
+                parameters=["int predicate"],
+                return_type="int",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions",
+            ),
+            "__syncthreads_and": CUDAAPIScrapedData(
+                api_name="__syncthreads_and",
+                full_signature="int __syncthreads_and(int predicate)",
+                description="Synchronizes and returns 1 if all threads in the block have non-zero predicate, 0 otherwise.",
+                category="thread-synchronization",
+                subcategory="barrier",
+                parameters=["int predicate"],
+                return_type="int",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions",
+            ),
+            "__syncthreads_or": CUDAAPIScrapedData(
+                api_name="__syncthreads_or",
+                full_signature="int __syncthreads_or(int predicate)",
+                description="Synchronizes and returns 1 if any thread in the block has non-zero predicate, 0 otherwise.",
+                category="thread-synchronization",
+                subcategory="barrier",
+                parameters=["int predicate"],
+                return_type="int",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions",
+            ),
+        }
+        return fallback_data.get(api_name)
+
+    def _get_fallback_memory_fence_api_data(self, api_name: str) -> Optional[CUDAAPIScrapedData]:
+        """获取内存屏障 API 的预定义数据"""
+        fallback_data = {
+            "__threadfence": CUDAAPIScrapedData(
+                api_name="__threadfence",
+                full_signature="void __threadfence()",
+                description="Ensures that all global memory accesses by all threads in the block are visible to all threads in the device before any thread in the block proceeds.",
+                category="memory-fence",
+                subcategory="fence",
+                parameters=[],
+                return_type="void",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#memory-fence-functions",
+            ),
+            "__threadfence_block": CUDAAPIScrapedData(
+                api_name="__threadfence_block",
+                full_signature="void __threadfence_block()",
+                description="Ensures that all global memory accesses by all threads in the block are visible to all threads in the block before any thread proceeds.",
+                category="memory-fence",
+                subcategory="fence",
+                parameters=[],
+                return_type="void",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#memory-fence-functions",
+            ),
+            "__threadfence_system": CUDAAPIScrapedData(
+                api_name="__threadfence_system",
+                full_signature="void __threadfence_system()",
+                description="Ensures that all global memory accesses by all threads in the device are visible to all threads in the system before any thread proceeds.",
+                category="memory-fence",
+                subcategory="fence",
+                parameters=[],
+                return_type="void",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#memory-fence-functions",
+            ),
+        }
+        return fallback_data.get(api_name)
 
     def _get_fallback_memory_api_data(self, api_name: str) -> Optional[CUDAAPIScrapedData]:
         """获取内存管理 API 的预定义数据"""
@@ -535,6 +743,200 @@ class CUDADocScraper:
                 return_type="cudaError_t",
                 documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html",
             ),
+            "cudaMallocHost": CUDAAPIScrapedData(
+                api_name="cudaMallocHost",
+                full_signature="cudaError_t cudaMallocHost(void** ptr, size_t size)",
+                description="Allocates page-locked host memory. Accessible by host and device, enables faster DMA transfers.",
+                category="memory-management",
+                subcategory="allocation",
+                parameters=["void** ptr", "size_t size"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html",
+            ),
+            "cudaMallocPitch": CUDAAPIScrapedData(
+                api_name="cudaMallocPitch",
+                full_signature="cudaError_t cudaMallocPitch(void** devPtr, size_t* pitch, size_t width, size_t height)",
+                description="Allocates pitched device memory. pitch ensures memory access efficiency for 2D arrays.",
+                category="memory-management",
+                subcategory="allocation",
+                parameters=["void** devPtr", "size_t* pitch", "size_t width", "size_t height"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html",
+            ),
+            "cudaFreeHost": CUDAAPIScrapedData(
+                api_name="cudaFreeHost",
+                full_signature="cudaError_t cudaFreeHost(void* ptr)",
+                description="Frees page-locked host memory allocated by cudaMallocHost.",
+                category="memory-management",
+                subcategory="deallocation",
+                parameters=["void* ptr"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html",
+            ),
+            "cudaMemcpyToSymbol": CUDAAPIScrapedData(
+                api_name="cudaMemcpyToSymbol",
+                full_signature="cudaError_t cudaMemcpyToSymbol(const void* symbol, const void* src, size_t count, size_t offset, cudaMemcpyKind kind)",
+                description="Copies memory to a symbol (constant memory) on the device.",
+                category="memory-management",
+                subcategory="copy",
+                parameters=["const void* symbol", "const void* src", "size_t count", "size_t offset", "cudaMemcpyKind kind"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html",
+            ),
+            "cudaMemcpyAsync": CUDAAPIScrapedData(
+                api_name="cudaMemcpyAsync",
+                full_signature="cudaError_t cudaMemcpyAsync(void* dst, const void* src, size_t count, cudaMemcpyKind kind, cudaStream_t stream)",
+                description="Copies data between host and device asynchronously. Non-blocking, requires stream argument.",
+                category="memory-management",
+                subcategory="copy",
+                parameters=["void* dst", "const void* src", "size_t count", "cudaMemcpyKind kind", "cudaStream_t stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html",
+            ),
+            "cudaMemsetAsync": CUDAAPIScrapedData(
+                api_name="cudaMemsetAsync",
+                full_signature="cudaError_t cudaMemsetAsync(void* devPtr, int value, size_t count, cudaStream_t stream)",
+                description="Asynchronously fills device memory with a specific value.",
+                category="memory-management",
+                subcategory="set",
+                parameters=["void* devPtr", "int value", "size_t count", "cudaStream_t stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html",
+            ),
+            # Thread Synchronization
+            "__syncthreads": CUDAAPIScrapedData(
+                api_name="__syncthreads",
+                full_signature="void __syncthreads()",
+                description="Synchronizes all threads in a block. Used to ensure memory writes are visible between threads before proceeding.",
+                category="thread-synchronization",
+                subcategory="barrier",
+                parameters=[],
+                return_type="void",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions",
+            ),
+            "__syncthreads_count": CUDAAPIScrapedData(
+                api_name="__syncthreads_count",
+                full_signature="int __syncthreads_count(int predicate)",
+                description="Synchronizes all threads and returns the number of threads for which predicate is non-zero.",
+                category="thread-synchronization",
+                subcategory="barrier",
+                parameters=["int predicate"],
+                return_type="int",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions",
+            ),
+            "__syncthreads_and": CUDAAPIScrapedData(
+                api_name="__syncthreads_and",
+                full_signature="int __syncthreads_and(int predicate)",
+                description="Synchronizes and returns 1 if all threads in the block have non-zero predicate, 0 otherwise.",
+                category="thread-synchronization",
+                subcategory="barrier",
+                parameters=["int predicate"],
+                return_type="int",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions",
+            ),
+            "__syncthreads_or": CUDAAPIScrapedData(
+                api_name="__syncthreads_or",
+                full_signature="int __syncthreads_or(int predicate)",
+                description="Synchronizes and returns 1 if any thread in the block has non-zero predicate, 0 otherwise.",
+                category="thread-synchronization",
+                subcategory="barrier",
+                parameters=["int predicate"],
+                return_type="int",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions",
+            ),
+            # Memory Fence
+            "__threadfence": CUDAAPIScrapedData(
+                api_name="__threadfence",
+                full_signature="void __threadfence()",
+                description="Ensures that all global memory accesses by all threads in the block are visible to all threads in the device before any thread in the block proceeds.",
+                category="memory-fence",
+                subcategory="fence",
+                parameters=[],
+                return_type="void",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#memory-fence-functions",
+            ),
+            "__threadfence_block": CUDAAPIScrapedData(
+                api_name="__threadfence_block",
+                full_signature="void __threadfence_block()",
+                description="Ensures that all global memory accesses by all threads in the block are visible to all threads in the block before any thread proceeds.",
+                category="memory-fence",
+                subcategory="fence",
+                parameters=[],
+                return_type="void",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#memory-fence-functions",
+            ),
+            "__threadfence_system": CUDAAPIScrapedData(
+                api_name="__threadfence_system",
+                full_signature="void __threadfence_system()",
+                description="Ensures that all global memory accesses by all threads in the device are visible to all threads in the system before any thread proceeds.",
+                category="memory-fence",
+                subcategory="fence",
+                parameters=[],
+                return_type="void",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#memory-fence-functions",
+            ),
+            # Stream APIs
+            "cudaStreamCreate": CUDAAPIScrapedData(
+                api_name="cudaStreamCreate",
+                full_signature="cudaError_t cudaStreamCreate(cudaStream_t* stream)",
+                description="Creates a stream for asynchronous operations.",
+                category="stream-management",
+                subcategory="create",
+                parameters=["cudaStream_t* stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html",
+            ),
+            "cudaStreamSynchronize": CUDAAPIScrapedData(
+                api_name="cudaStreamSynchronize",
+                full_signature="cudaError_t cudaStreamSynchronize(cudaStream_t stream)",
+                description="Synchronizes all operations in the specified stream.",
+                category="stream-management",
+                subcategory="synchronize",
+                parameters=["cudaStream_t stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html",
+            ),
+            "cudaStreamDestroy": CUDAAPIScrapedData(
+                api_name="cudaStreamDestroy",
+                full_signature="cudaError_t cudaStreamDestroy(cudaStream_t stream)",
+                description="Destroys a stream created by cudaStreamCreate.",
+                category="stream-management",
+                subcategory="destroy",
+                parameters=["cudaStream_t stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html",
+            ),
+            # Event APIs
+            "cudaEventCreate": CUDAAPIScrapedData(
+                api_name="cudaEventCreate",
+                full_signature="cudaError_t cudaEventCreate(cudaEvent_t* event)",
+                description="Creates an event for timing and synchronization.",
+                category="event-management",
+                subcategory="create",
+                parameters=["cudaEvent_t* event"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html",
+            ),
+            "cudaEventSynchronize": CUDAAPIScrapedData(
+                api_name="cudaEventSynchronize",
+                full_signature="cudaError_t cudaEventSynchronize(cudaEvent_t event)",
+                description="Waits for an event to complete.",
+                category="event-management",
+                subcategory="synchronize",
+                parameters=["cudaEvent_t event"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html",
+            ),
+            "cudaEventRecord": CUDAAPIScrapedData(
+                api_name="cudaEventRecord",
+                full_signature="cudaError_t cudaEventRecord(cudaEvent_t event, cudaStream_t stream)",
+                description="Records an event in a stream.",
+                category="event-management",
+                subcategory="record",
+                parameters=["cudaEvent_t event", "cudaStream_t stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html",
+            ),
         }
         return fallback_data.get(api_name)
 
@@ -563,6 +965,14 @@ async def scrape_cuda_apis_batch(
         # 采集 Memory APIs
         memory_apis = await scraper.scrape_memory_apis()
         all_apis.extend(memory_apis)
+
+        # 采集 Thread Synchronization APIs
+        thread_sync_apis = await scraper.scrape_thread_sync_apis()
+        all_apis.extend(thread_sync_apis)
+
+        # 采集 Memory Fence APIs
+        memory_fence_apis = await scraper.scrape_memory_fence_apis()
+        all_apis.extend(memory_fence_apis)
 
         return all_apis
 

@@ -33,6 +33,8 @@ from src.asc_ops.gpu_collector.doc_scraper import (
     WARP_VOTE_APIS,
     WARP_REDUCE_APIS,
     MEMORY_APIS,
+    THREAD_SYNC_APIS,
+    MEMORY_FENCE_APIS,
 )
 from src.asc_ops.gpu_collector.llm_semantic_analyzer import (
     CUDASemanticAnalyzer,
@@ -86,27 +88,32 @@ async def collect_cuda_apis(
     async with CUDADocScraper(headless=headless) as scraper:
         all_apis = []
 
-        # 采集 Warp Shuffle APIs
-        logger.info(f"Collecting {len(WARP_SHUFFLE_APIS)} warp shuffle APIs...")
+        # 采集 Warp Shuffle/Vote/Reduce APIs (所有 warp-level APIs)
+        logger.info(f"Collecting {len(WARP_SHUFFLE_APIS) + len(WARP_VOTE_APIS) + len(WARP_REDUCE_APIS)} warp-level APIs...")
         warp_apis = await scraper.scrape_warp_shuffle_apis()
         all_apis.extend(warp_apis)
-        logger.info(f"Collected {len(warp_apis)} warp shuffle APIs")
-
-        # 采集 Warp Vote APIs
-        logger.info(f"Collecting {len(WARP_VOTE_APIS)} warp vote APIs...")
-        vote_apis = await scraper.scrape_warp_shuffle_apis()  # 复用同一方法
-        all_apis.extend(vote_apis)
-        logger.info(f"Collected {len(vote_apis)} warp vote APIs")
-
-        # 采集 Warp Reduce APIs
-        logger.info(f"Collecting {len(WARP_REDUCE_APIS)} warp reduce APIs...")
-        reduce_apis = await scraper.scrape_warp_shuffle_apis()  # 复用同一方法
-        all_apis.extend(reduce_apis)
-        logger.info(f"Collected {len(reduce_apis)} warp reduce APIs")
+        logger.info(f"Collected {len(warp_apis)} warp-level APIs")
 
         # 采集 Memory APIs
         logger.info(f"Collecting {len(MEMORY_APIS)} memory APIs...")
         memory_apis = await scraper.scrape_memory_apis()
+        all_apis.extend(memory_apis)
+        logger.info(f"Collected {len(memory_apis)} memory APIs")
+
+        # 采集 Thread Synchronization APIs
+        logger.info(f"Collecting {len(THREAD_SYNC_APIS)} thread sync APIs...")
+        thread_sync_apis = await scraper.scrape_thread_sync_apis()
+        all_apis.extend(thread_sync_apis)
+        logger.info(f"Collected {len(thread_sync_apis)} thread sync APIs")
+
+        # 采集 Memory Fence APIs
+        logger.info(f"Collecting {len(MEMORY_FENCE_APIS)} memory fence APIs...")
+        memory_fence_apis = await scraper.scrape_memory_fence_apis()
+        all_apis.extend(memory_fence_apis)
+        logger.info(f"Collected {len(memory_fence_apis)} memory fence APIs")
+
+        logger.info(f"Total collected: {len(all_apis)} APIs")
+        return all_apis
         all_apis.extend(memory_apis)
         logger.info(f"Collected {len(memory_apis)} memory APIs")
 
