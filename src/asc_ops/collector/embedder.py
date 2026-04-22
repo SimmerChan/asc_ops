@@ -54,7 +54,7 @@ class APIEmbedder:
         初始化向量化器
 
         Args:
-            model_name: 模型名称 (默认 all-MiniLM-L6-v2)
+            model_name: 模型名称 (默认 Qwen/Qwen3-Embedding-0.6B)
             model_path: 本地模型路径 (可选)
             embedding_dim: 向量维度 (可选，用于验证)
             batch_size: 批处理大小

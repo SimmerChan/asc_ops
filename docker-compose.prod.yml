@@ -23,7 +23,7 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DEFAULT_PROVIDER=anthropic
-      - EMBEDDING_MODEL_NAME=all-MiniLM-L6-v2
+      - EMBEDDING_MODEL_NAME=Qwen/Qwen3-Embedding-0.6B
       - EMBEDDING_BATCH_SIZE=32
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8000

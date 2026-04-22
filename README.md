@@ -306,7 +306,7 @@ EMBEDDING_DEVICE=mps  # 或 cuda/cpu
 
 # 方式2: Sentence Transformers
 EMBEDDING_EMBEDDER_TYPE=sentence_transformers
-EMBEDDING_MODEL_NAME=all-MiniLM-L6-v2
+EMBEDDING_MODEL_NAME=Qwen/Qwen3-Embedding-0.6B
 
 # 方式3: Mock (仅精确查询, 无语义搜索)
 EMBEDDING_EMBEDDER_TYPE=mock

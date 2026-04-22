@@ -29,7 +29,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir pytest pytest-cov pytest-asyncio httpx
 
 # 下载 embedding 模型
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('Qwen/Qwen3-Embedding-0.6B')"
 
 # Copy application code
 COPY . .
@@ -61,7 +61,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 下载 embedding 模型
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('Qwen/Qwen3-Embedding-0.6B')"
 
 # Copy application code
 COPY . .

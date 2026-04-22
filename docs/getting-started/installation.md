@@ -177,7 +177,7 @@ ANTHROPIC_API_KEY=sk-xxx  # 或
 OPENAI_API_KEY=sk-xxx
 
 # === 向量化模型 ===
-EMBEDDING_MODEL=all-MiniLM-L6-v2
+EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
 
 # === 服务配置 ===
 SERVER_HOST=0.0.0.0
@@ -270,7 +270,7 @@ redis-cli ping
 **解决**:
 ```bash
 # 手动下载模型
-python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('Qwen/Qwen3-Embedding-0.6B')"
 ```
 
 ### Q4: Python版本不兼容

@@ -65,7 +65,7 @@ completed: 2026-04-10
 
 - **D1. ChromaDB (嵌入式)**: 零运维、嵌入式存储，适合当前规模 (1786 API + 知识向量)
 - **D2. Redis**: 高性能 KV 存储，用于精确索引、元数据、关联查询
-- **D3. sentence-transformers (all-MiniLM-L6-v2)**: 默认 embedding 模型，支持本地运行；设计预留 Qwen3-Embedding-4B 升级接口
+- **D3. sentence-transformers (Qwen/Qwen3-Embedding-0.6B)**: 默认 embedding 模型，支持本地运行；设计预留 Qwen3-Embedding-4B 升级接口
 - **D4. Claude 3.5 Sonnet**: LLM 抽取 Bug/优化知识，设计预留多模型支持
 - **D5. CLI 手动触发同步**: 简化复杂度，不依赖自动变更检测
 - **D6. 三知识库分离**: APIKB、BugKB、OptKB 独立 collection，按需关联
@@ -80,7 +80,7 @@ completed: 2026-04-10
 ### Resolved During Planning
 
 - **Q1 (Phase 5 范围)**: Phase 5 Bug/优化知识设计已确认包含在此次规划中
-- **Q2 (Embedding 模型)**: 默认使用 `all-MiniLM-L6-v2` (已在 docker-compose.yml 中配置)，Qwen3-Embedding-4B 作为可配置升级选项
+- **Q2 (Embedding 模型)**: 默认使用 `Qwen/Qwen3-Embedding-0.6B` (已在 docker-compose.yml 中配置)，Qwen3-Embedding-4B 作为可配置升级选项
 
 ### Deferred to Implementation
 
@@ -298,7 +298,7 @@ sequenceDiagram
 **Approach:**
 - 使用 `pydantic-settings` 管理配置
 - 配置项: `CHROMA_DB_PATH`, `REDIS_HOST`, `REDIS_PORT`, `ANTHROPIC_API_KEY`, `EMBEDDING_MODEL`, `SERVER_HOST`, `SERVER_PORT`, `LOG_LEVEL`
-- Embedding 模型可配置: 默认 `all-MiniLM-L6-v2`，支持切换 `Qwen3-Embedding-4B`
+- Embedding 模型可配置: 默认 `Qwen/Qwen3-Embedding-0.6B`，支持切换 `Qwen3-Embedding-4B`
 - LLM 可配置: 默认 `Claude 3.5 Sonnet`，预留多模型支持
 
 **Patterns to follow:**

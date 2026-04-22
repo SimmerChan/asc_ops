@@ -90,7 +90,7 @@ class EmbeddingConfig(BaseSettings):
     # Embedder 类型: "sentence_transformers" | "qwen" | "mock"
     embedder_type: str = "sentence_transformers"
     # 模型名称
-    model_name: str = "all-MiniLM-L6-v2"
+    model_name: str = "Qwen/Qwen3-Embedding-0.6B"
     # 模型路径 (如果使用本地模型)
     model_path: Optional[str] = None
     # 向量维度 (某些模型可配置)

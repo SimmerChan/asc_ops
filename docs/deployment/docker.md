@@ -69,7 +69,7 @@ CHROMA_DB_PATH=/data/chroma_db
 REDIS_HOST=redis
 REDIS_PORT=6379
 ANTHROPIC_API_KEY=sk-xxx  # 必填，用于知识抽取
-EMBEDDING_MODEL=all-MiniLM-L6-v2
+EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
 SERVER_PORT=8000
 ```
 
@@ -124,7 +124,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
     volumes:
       - ./data/chroma_db:/data/chroma_db
       - ./data/redis:/data/redis
@@ -180,7 +180,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
       - LOG_LEVEL=WARNING
     volumes:
       - /opt/asc_ops/chroma_db:/data/chroma_db
