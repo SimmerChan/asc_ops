@@ -1,0 +1,1311 @@
+{
+  "analyzed_at": "2026-04-22T23:04:05.296118",
+  "total": 125,
+  "results": [
+    {
+      "api_name": "__shfl_sync",
+      "semantic_description": "__shfl_sync: Warp-level shuffle operation for data exchange between threads within a warp without shared memory. Part of CUDA warp-shuffle API group.",
+      "keywords": [
+        "shflsync",
+        "warp",
+        "shuffle"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__shfl_up_sync",
+      "semantic_description": "__shfl_up_sync: Warp-level shuffle operation for data exchange between threads within a warp without shared memory. Part of CUDA warp-shuffle API group.",
+      "keywords": [
+        "shflupsync",
+        "warp",
+        "shuffle"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__shfl_down_sync",
+      "semantic_description": "__shfl_down_sync: Warp-level shuffle operation for data exchange between threads within a warp without shared memory. Part of CUDA warp-shuffle API group.",
+      "keywords": [
+        "warp",
+        "shfldownsync",
+        "shuffle"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__shfl_xor_sync",
+      "semantic_description": "__shfl_xor_sync: Warp-level shuffle operation for data exchange between threads within a warp without shared memory. Part of CUDA warp-shuffle API group.",
+      "keywords": [
+        "warp",
+        "shuffle",
+        "shflxorsync"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__all_sync",
+      "semantic_description": "__all_sync: Warp-level vote/broadcast operation for collective thread decisions. Part of CUDA warp-vote API group.",
+      "keywords": [
+        "vote",
+        "warp",
+        "allsync"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__any_sync",
+      "semantic_description": "__any_sync: Warp-level vote/broadcast operation for collective thread decisions. Part of CUDA warp-vote API group.",
+      "keywords": [
+        "vote",
+        "warp",
+        "anysync"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__uni_sync",
+      "semantic_description": "__uni_sync: Warp-level vote/broadcast operation for collective thread decisions. Part of CUDA warp-vote API group.",
+      "keywords": [
+        "vote",
+        "warp",
+        "unisync"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__all",
+      "semantic_description": "__all: Warp-level vote/broadcast operation for collective thread decisions. Part of CUDA warp-vote API group.",
+      "keywords": [
+        "vote",
+        "warp",
+        "all"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__any",
+      "semantic_description": "__any: Warp-level vote/broadcast operation for collective thread decisions. Part of CUDA warp-vote API group.",
+      "keywords": [
+        "vote",
+        "any",
+        "warp"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__reduce_add_sync",
+      "semantic_description": "__reduce_add_sync: Warp-level reduction operation for aggregating values across threads. Part of CUDA warp-reduce API group.",
+      "keywords": [
+        "warp",
+        "reduction",
+        "reduceaddsync"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__reduce_mul_sync",
+      "semantic_description": "__reduce_mul_sync: Warp-level reduction operation for aggregating values across threads. Part of CUDA warp-reduce API group.",
+      "keywords": [
+        "warp",
+        "reduction",
+        "reducemulsync"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__reduce_min_sync",
+      "semantic_description": "__reduce_min_sync: Warp-level reduction operation for aggregating values across threads. Part of CUDA warp-reduce API group.",
+      "keywords": [
+        "warp",
+        "reduction",
+        "reduceminsync"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__reduce_max_sync",
+      "semantic_description": "__reduce_max_sync: Warp-level reduction operation for aggregating values across threads. Part of CUDA warp-reduce API group.",
+      "keywords": [
+        "reducemaxsync",
+        "warp",
+        "reduction"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__reduce_and_sync",
+      "semantic_description": "__reduce_and_sync: Warp-level reduction operation for aggregating values across threads. Part of CUDA warp-reduce API group.",
+      "keywords": [
+        "reduceandsync",
+        "warp",
+        "reduction"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__reduce_or_sync",
+      "semantic_description": "__reduce_or_sync: Warp-level reduction operation for aggregating values across threads. Part of CUDA warp-reduce API group.",
+      "keywords": [
+        "warp",
+        "reduceorsync",
+        "reduction"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__reduce_xor_sync",
+      "semantic_description": "__reduce_xor_sync: Warp-level reduction operation for aggregating values across threads. Part of CUDA warp-reduce API group.",
+      "keywords": [
+        "warp",
+        "reducexorsync",
+        "reduction"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__match_any_sync",
+      "semantic_description": "__match_any_sync: CUDA warp-match operation. Part of CUDA warp-match API group.",
+      "keywords": [
+        "warp",
+        "matchanysync"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__match_all_sync",
+      "semantic_description": "__match_all_sync: CUDA warp-match operation. Part of CUDA warp-match API group.",
+      "keywords": [
+        "warp",
+        "matchallsync"
+      ],
+      "operation_type": "warp",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMalloc",
+      "semantic_description": "cudaMalloc: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "cudaMalloc",
+        "allocation"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMallocHost",
+      "semantic_description": "cudaMallocHost: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMallocHost"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMallocManaged",
+      "semantic_description": "cudaMallocManaged: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMallocManaged"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMallocPitch",
+      "semantic_description": "cudaMallocPitch: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMallocPitch"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMallocArray",
+      "semantic_description": "cudaMallocArray: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMallocArray"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMalloc3D",
+      "semantic_description": "cudaMalloc3D: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMalloc3D"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMalloc3DArray",
+      "semantic_description": "cudaMalloc3DArray: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMalloc3DArray"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMallocMipmappedArray",
+      "semantic_description": "cudaMallocMipmappedArray: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMallocMipmappedArray"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaFree",
+      "semantic_description": "cudaFree: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaFree"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaFreeHost",
+      "semantic_description": "cudaFreeHost: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaFreeHost"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaFreeArray",
+      "semantic_description": "cudaFreeArray: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "cudaFreeArray",
+        "allocation"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaFreeMipmappedArray",
+      "semantic_description": "cudaFreeMipmappedArray: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "cudaFreeMipmappedArray",
+        "allocation"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaHostAlloc",
+      "semantic_description": "cudaHostAlloc: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "cudaHostAlloc",
+        "allocation"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaHostRegister",
+      "semantic_description": "cudaHostRegister: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaHostRegister"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaHostUnregister",
+      "semantic_description": "cudaHostUnregister: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaHostUnregister"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpy",
+      "semantic_description": "cudaMemcpy: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemcpy"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpyAsync",
+      "semantic_description": "cudaMemcpyAsync: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemcpyAsync"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpy2D",
+      "semantic_description": "cudaMemcpy2D: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "cudaMemcpy2D",
+        "allocation"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpy2DAsync",
+      "semantic_description": "cudaMemcpy2DAsync: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemcpy2DAsync"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpy3D",
+      "semantic_description": "cudaMemcpy3D: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "cudaMemcpy3D",
+        "allocation"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpy3DAsync",
+      "semantic_description": "cudaMemcpy3DAsync: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemcpy3DAsync"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpyPeer",
+      "semantic_description": "cudaMemcpyPeer: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "cudaMemcpyPeer",
+        "allocation"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpyPeerAsync",
+      "semantic_description": "cudaMemcpyPeerAsync: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemcpyPeerAsync"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpyToSymbol",
+      "semantic_description": "cudaMemcpyToSymbol: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemcpyToSymbol"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpyFromSymbol",
+      "semantic_description": "cudaMemcpyFromSymbol: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemcpyFromSymbol"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpyToSymbolAsync",
+      "semantic_description": "cudaMemcpyToSymbolAsync: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemcpyToSymbolAsync"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemcpyFromSymbolAsync",
+      "semantic_description": "cudaMemcpyFromSymbolAsync: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "cudaMemcpyFromSymbolAsync",
+        "allocation"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemset",
+      "semantic_description": "cudaMemset: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "cudaMemset",
+        "allocation"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemsetAsync",
+      "semantic_description": "cudaMemsetAsync: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemsetAsync"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemset2D",
+      "semantic_description": "cudaMemset2D: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemset2D"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemset2DAsync",
+      "semantic_description": "cudaMemset2DAsync: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemset2DAsync"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemset3D",
+      "semantic_description": "cudaMemset3D: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemset3D"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemset3DAsync",
+      "semantic_description": "cudaMemset3DAsync: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemset3DAsync"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemGetInfo",
+      "semantic_description": "cudaMemGetInfo: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemGetInfo"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemAdvise",
+      "semantic_description": "cudaMemAdvise: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "cudaMemAdvise",
+        "allocation"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaMemPrefetchAsync",
+      "semantic_description": "cudaMemPrefetchAsync: CUDA memory allocation, copy, or initialization operation. Part of CUDA memory-management API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "cudaMemPrefetchAsync"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__syncthreads",
+      "semantic_description": "__syncthreads: CUDA thread-synchronization operation. Part of CUDA thread-synchronization API group.",
+      "keywords": [
+        "syncthreads",
+        "thread"
+      ],
+      "operation_type": "thread",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__syncthreads_count",
+      "semantic_description": "__syncthreads_count: CUDA thread-synchronization operation. Part of CUDA thread-synchronization API group.",
+      "keywords": [
+        "syncthreadscount",
+        "thread"
+      ],
+      "operation_type": "thread",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__syncthreads_and",
+      "semantic_description": "__syncthreads_and: CUDA thread-synchronization operation. Part of CUDA thread-synchronization API group.",
+      "keywords": [
+        "thread",
+        "syncthreadsand"
+      ],
+      "operation_type": "thread",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__syncthreads_or",
+      "semantic_description": "__syncthreads_or: CUDA thread-synchronization operation. Part of CUDA thread-synchronization API group.",
+      "keywords": [
+        "thread",
+        "syncthreadsor"
+      ],
+      "operation_type": "thread",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__threadfence",
+      "semantic_description": "__threadfence: CUDA memory-fence operation. Part of CUDA memory-fence API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "threadfence"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__threadfence_block",
+      "semantic_description": "__threadfence_block: CUDA memory-fence operation. Part of CUDA memory-fence API group.",
+      "keywords": [
+        "memory",
+        "threadfenceblock",
+        "allocation"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "__threadfence_system",
+      "semantic_description": "__threadfence_system: CUDA memory-fence operation. Part of CUDA memory-fence API group.",
+      "keywords": [
+        "memory",
+        "allocation",
+        "threadfencesystem"
+      ],
+      "operation_type": "memory",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamCreate",
+      "semantic_description": "cudaStreamCreate: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamCreate",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamCreateWithFlags",
+      "semantic_description": "cudaStreamCreateWithFlags: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamCreateWithFlags",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamCreateWithPriority",
+      "semantic_description": "cudaStreamCreateWithPriority: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamCreateWithPriority",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamDestroy",
+      "semantic_description": "cudaStreamDestroy: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamDestroy",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamSynchronize",
+      "semantic_description": "cudaStreamSynchronize: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamSynchronize",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamWaitEvent",
+      "semantic_description": "cudaStreamWaitEvent: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamWaitEvent",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamAddCallback",
+      "semantic_description": "cudaStreamAddCallback: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamAddCallback",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamQuery",
+      "semantic_description": "cudaStreamQuery: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamQuery",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamBeginCapture",
+      "semantic_description": "cudaStreamBeginCapture: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamBeginCapture",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamEndCapture",
+      "semantic_description": "cudaStreamEndCapture: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamEndCapture",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamIsCapturing",
+      "semantic_description": "cudaStreamIsCapturing: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamIsCapturing",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamAttachMemAsync",
+      "semantic_description": "cudaStreamAttachMemAsync: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamAttachMemAsync",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamGetCaptureInfo",
+      "semantic_description": "cudaStreamGetCaptureInfo: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamGetCaptureInfo",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamGetDevice",
+      "semantic_description": "cudaStreamGetDevice: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamGetDevice",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamGetFlags",
+      "semantic_description": "cudaStreamGetFlags: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamGetFlags",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamGetId",
+      "semantic_description": "cudaStreamGetId: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamGetId",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamGetPriority",
+      "semantic_description": "cudaStreamGetPriority: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamGetPriority",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamSetAttribute",
+      "semantic_description": "cudaStreamSetAttribute: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamSetAttribute",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamGetAttribute",
+      "semantic_description": "cudaStreamGetAttribute: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamGetAttribute",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamCopyAttributes",
+      "semantic_description": "cudaStreamCopyAttributes: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamCopyAttributes",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaStreamUpdateCaptureDependencies",
+      "semantic_description": "cudaStreamUpdateCaptureDependencies: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaStreamUpdateCaptureDependencies",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaThreadExchangeStreamCaptureMode",
+      "semantic_description": "cudaThreadExchangeStreamCaptureMode: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaThreadExchangeStreamCaptureMode",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaCtxResetPersistingL2Cache",
+      "semantic_description": "cudaCtxResetPersistingL2Cache: CUDA stream management for asynchronous operation ordering. Part of CUDA stream-management API group.",
+      "keywords": [
+        "cudaCtxResetPersistingL2Cache",
+        "stream"
+      ],
+      "operation_type": "stream",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaEventCreate",
+      "semantic_description": "cudaEventCreate: CUDA event tracking for synchronization and timing. Part of CUDA event-management API group.",
+      "keywords": [
+        "event",
+        "cudaEventCreate"
+      ],
+      "operation_type": "event",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaEventCreateWithFlags",
+      "semantic_description": "cudaEventCreateWithFlags: CUDA event tracking for synchronization and timing. Part of CUDA event-management API group.",
+      "keywords": [
+        "event",
+        "cudaEventCreateWithFlags"
+      ],
+      "operation_type": "event",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaEventDestroy",
+      "semantic_description": "cudaEventDestroy: CUDA event tracking for synchronization and timing. Part of CUDA event-management API group.",
+      "keywords": [
+        "event",
+        "cudaEventDestroy"
+      ],
+      "operation_type": "event",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaEventRecord",
+      "semantic_description": "cudaEventRecord: CUDA event tracking for synchronization and timing. Part of CUDA event-management API group.",
+      "keywords": [
+        "event",
+        "cudaEventRecord"
+      ],
+      "operation_type": "event",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaEventRecordWithFlags",
+      "semantic_description": "cudaEventRecordWithFlags: CUDA event tracking for synchronization and timing. Part of CUDA event-management API group.",
+      "keywords": [
+        "event",
+        "cudaEventRecordWithFlags"
+      ],
+      "operation_type": "event",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaEventQuery",
+      "semantic_description": "cudaEventQuery: CUDA event tracking for synchronization and timing. Part of CUDA event-management API group.",
+      "keywords": [
+        "event",
+        "cudaEventQuery"
+      ],
+      "operation_type": "event",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaEventSynchronize",
+      "semantic_description": "cudaEventSynchronize: CUDA event tracking for synchronization and timing. Part of CUDA event-management API group.",
+      "keywords": [
+        "event",
+        "cudaEventSynchronize"
+      ],
+      "operation_type": "event",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaEventElapsedTime",
+      "semantic_description": "cudaEventElapsedTime: CUDA event tracking for synchronization and timing. Part of CUDA event-management API group.",
+      "keywords": [
+        "event",
+        "cudaEventElapsedTime"
+      ],
+      "operation_type": "event",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaChooseDevice",
+      "semantic_description": "cudaChooseDevice: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaChooseDevice",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaGetDevice",
+      "semantic_description": "cudaGetDevice: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaGetDevice",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaSetDevice",
+      "semantic_description": "cudaSetDevice: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaSetDevice",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaGetDeviceCount",
+      "semantic_description": "cudaGetDeviceCount: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaGetDeviceCount",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaGetDeviceFlags",
+      "semantic_description": "cudaGetDeviceFlags: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaGetDeviceFlags",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaGetDeviceProperties",
+      "semantic_description": "cudaGetDeviceProperties: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaGetDeviceProperties",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaInitDevice",
+      "semantic_description": "cudaInitDevice: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaInitDevice",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaSetDeviceFlags",
+      "semantic_description": "cudaSetDeviceFlags: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaSetDeviceFlags",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaSetValidDevices",
+      "semantic_description": "cudaSetValidDevices: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaSetValidDevices",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceGetAttribute",
+      "semantic_description": "cudaDeviceGetAttribute: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceGetAttribute",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceGetByPCIBusId",
+      "semantic_description": "cudaDeviceGetByPCIBusId: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceGetByPCIBusId",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceGetPCIBusId",
+      "semantic_description": "cudaDeviceGetPCIBusId: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceGetPCIBusId",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceGetStreamPriorityRange",
+      "semantic_description": "cudaDeviceGetStreamPriorityRange: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceGetStreamPriorityRange",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceGetCacheConfig",
+      "semantic_description": "cudaDeviceGetCacheConfig: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceGetCacheConfig",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceSetCacheConfig",
+      "semantic_description": "cudaDeviceSetCacheConfig: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceSetCacheConfig",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceGetDefaultMemPool",
+      "semantic_description": "cudaDeviceGetDefaultMemPool: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceGetDefaultMemPool",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceGetMemPool",
+      "semantic_description": "cudaDeviceGetMemPool: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceGetMemPool",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceSetMemPool",
+      "semantic_description": "cudaDeviceSetMemPool: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceSetMemPool",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceGetLimit",
+      "semantic_description": "cudaDeviceGetLimit: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceGetLimit",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceSetLimit",
+      "semantic_description": "cudaDeviceSetLimit: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceSetLimit",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceSynchronize",
+      "semantic_description": "cudaDeviceSynchronize: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceSynchronize",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceFlushGPUDirectRDMAWrites",
+      "semantic_description": "cudaDeviceFlushGPUDirectRDMAWrites: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceFlushGPUDirectRDMAWrites",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaIpcCloseMemHandle",
+      "semantic_description": "cudaIpcCloseMemHandle: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaIpcCloseMemHandle",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaIpcGetEventHandle",
+      "semantic_description": "cudaIpcGetEventHandle: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaIpcGetEventHandle",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaIpcGetMemHandle",
+      "semantic_description": "cudaIpcGetMemHandle: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaIpcGetMemHandle",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaIpcOpenEventHandle",
+      "semantic_description": "cudaIpcOpenEventHandle: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaIpcOpenEventHandle",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaIpcOpenMemHandle",
+      "semantic_description": "cudaIpcOpenMemHandle: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaIpcOpenMemHandle",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceGetP2PAttribute",
+      "semantic_description": "cudaDeviceGetP2PAttribute: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceGetP2PAttribute",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaDeviceReset",
+      "semantic_description": "cudaDeviceReset: CUDA device-management operation. Part of CUDA device-management API group.",
+      "keywords": [
+        "cudaDeviceReset",
+        "device"
+      ],
+      "operation_type": "device",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaConfigureCall",
+      "semantic_description": "cudaConfigureCall: CUDA execution-control operation. Part of CUDA execution-control API group.",
+      "keywords": [
+        "execution",
+        "cudaConfigureCall"
+      ],
+      "operation_type": "execution",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaLaunchKernel",
+      "semantic_description": "cudaLaunchKernel: CUDA execution-control operation. Part of CUDA execution-control API group.",
+      "keywords": [
+        "cudaLaunchKernel",
+        "execution"
+      ],
+      "operation_type": "execution",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaLaunchCooperativeKernel",
+      "semantic_description": "cudaLaunchCooperativeKernel: CUDA execution-control operation. Part of CUDA execution-control API group.",
+      "keywords": [
+        "execution",
+        "cudaLaunchCooperativeKernel"
+      ],
+      "operation_type": "execution",
+      "complexity_hint": "medium"
+    },
+    {
+      "api_name": "cudaLaunchCooperativeKernelMultiDevice",
+      "semantic_description": "cudaLaunchCooperativeKernelMultiDevice: CUDA execution-control operation. Part of CUDA execution-control API group.",
+      "keywords": [
+        "cudaLaunchCooperativeKernelMultiDevice",
+        "execution"
+      ],
+      "operation_type": "execution",
+      "complexity_hint": "medium"
+    }
+  ]
+}

@@ -1,0 +1,1677 @@
+{
+  "collected_at": "2026-04-22T23:04:05.292171",
+  "total": 125,
+  "apis": [
+    {
+      "api_name": "__shfl_sync",
+      "full_signature": "T __shfl_sync(unsigned mask, T var, int delta)",
+      "description": "Exchange value among threads in a warp with source thread offset by delta modulo warp size. Threads within a warp must execute the same instruction simultaneously.",
+      "category": "warp-shuffle",
+      "subcategory": "shuffle",
+      "parameters": [
+        "unsigned mask",
+        "T var",
+        "int delta"
+      ],
+      "return_type": "T",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-shuffle-functions"
+    },
+    {
+      "api_name": "__shfl_up_sync",
+      "full_signature": "T __shfl_up_sync(unsigned mask, T var, int delta)",
+      "description": "Exchange value among threads in a warp by shifting data up by delta lanes. Upper warp lanes get undefined result.",
+      "category": "warp-shuffle",
+      "subcategory": "shuffle",
+      "parameters": [
+        "unsigned mask",
+        "T var",
+        "int delta"
+      ],
+      "return_type": "T",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-shuffle-functions"
+    },
+    {
+      "api_name": "__shfl_down_sync",
+      "full_signature": "T __shfl_down_sync(unsigned mask, T var, int delta)",
+      "description": "Exchange value among threads in a warp by shifting data down by delta lanes. Lower warp lanes get undefined result.",
+      "category": "warp-shuffle",
+      "subcategory": "shuffle",
+      "parameters": [
+        "unsigned mask",
+        "T var",
+        "int delta"
+      ],
+      "return_type": "T",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-shuffle-functions"
+    },
+    {
+      "api_name": "__shfl_xor_sync",
+      "full_signature": "T __shfl_xor_sync(unsigned mask, T var, int laneMask)",
+      "description": "Exchange value among threads in a warp based on bitwise XOR of lane ID. Enables butterfly communication patterns.",
+      "category": "warp-shuffle",
+      "subcategory": "shuffle",
+      "parameters": [
+        "unsigned mask",
+        "T var",
+        "int laneMask"
+      ],
+      "return_type": "T",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-shuffle-functions"
+    },
+    {
+      "api_name": "__all_sync",
+      "full_signature": "int __all_sync(unsigned mask, int predicate)",
+      "description": "Synchronous warp-level ALL reduction. Returns 1 if predicate is true for all threads in the warp, 0 otherwise.",
+      "category": "warp-vote",
+      "subcategory": "vote",
+      "parameters": [
+        "unsigned mask",
+        "int predicate"
+      ],
+      "return_type": "int",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-vote-functions"
+    },
+    {
+      "api_name": "__any_sync",
+      "full_signature": "int __any_sync(unsigned mask, int predicate)",
+      "description": "Synchronous warp-level ANY reduction. Returns 1 if predicate is true for any thread in the warp, 0 otherwise.",
+      "category": "warp-vote",
+      "subcategory": "vote",
+      "parameters": [
+        "unsigned mask",
+        "int predicate"
+      ],
+      "return_type": "int",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-vote-functions"
+    },
+    {
+      "api_name": "__uni_sync",
+      "full_signature": "int __uni_sync(unsigned mask)",
+      "description": "Synchronous warp-level UNISON. Returns 1 if all threads have the same value, 0 otherwise.",
+      "category": "warp-vote",
+      "subcategory": "vote",
+      "parameters": [
+        "unsigned mask"
+      ],
+      "return_type": "int",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-vote-functions"
+    },
+    {
+      "api_name": "__all",
+      "full_signature": "int __all(int predicate)",
+      "description": "[DEPRECATED] Warp-level ALL reduction. Returns 1 if predicate is true for all threads in the warp.",
+      "category": "warp-vote",
+      "subcategory": "vote",
+      "parameters": [
+        "int predicate"
+      ],
+      "return_type": "int",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-vote-functions"
+    },
+    {
+      "api_name": "__any",
+      "full_signature": "int __any(int predicate)",
+      "description": "[DEPRECATED] Warp-level ANY reduction. Returns 1 if predicate is true for any thread in the warp.",
+      "category": "warp-vote",
+      "subcategory": "vote",
+      "parameters": [
+        "int predicate"
+      ],
+      "return_type": "int",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-vote-functions"
+    },
+    {
+      "api_name": "__reduce_add_sync",
+      "full_signature": "T __reduce_add_sync(unsigned mask, T var)",
+      "description": "Synchronous warp-level ADD reduction. Computes sum of var across all threads in the warp.",
+      "category": "warp-reduce",
+      "subcategory": "reduce",
+      "parameters": [
+        "unsigned mask",
+        "T var"
+      ],
+      "return_type": "T",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-reduce-functions"
+    },
+    {
+      "api_name": "__reduce_mul_sync",
+      "full_signature": "T __reduce_mul_sync(unsigned mask, T var)",
+      "description": "Synchronous warp-level MUL reduction. Computes product of var across all threads in the warp.",
+      "category": "warp-reduce",
+      "subcategory": "reduce",
+      "parameters": [
+        "unsigned mask",
+        "T var"
+      ],
+      "return_type": "T",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-reduce-functions"
+    },
+    {
+      "api_name": "__reduce_min_sync",
+      "full_signature": "T __reduce_min_sync(unsigned mask, T var)",
+      "description": "Synchronous warp-level MIN reduction. Computes minimum of var across all threads in the warp.",
+      "category": "warp-reduce",
+      "subcategory": "reduce",
+      "parameters": [
+        "unsigned mask",
+        "T var"
+      ],
+      "return_type": "T",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-reduce-functions"
+    },
+    {
+      "api_name": "__reduce_max_sync",
+      "full_signature": "T __reduce_max_sync(unsigned mask, T var)",
+      "description": "Synchronous warp-level MAX reduction. Computes maximum of var across all threads in the warp.",
+      "category": "warp-reduce",
+      "subcategory": "reduce",
+      "parameters": [
+        "unsigned mask",
+        "T var"
+      ],
+      "return_type": "T",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-reduce-functions"
+    },
+    {
+      "api_name": "__reduce_and_sync",
+      "full_signature": "T __reduce_and_sync(unsigned mask, T var)",
+      "description": "Synchronous warp-level AND reduction. Computes bitwise AND of var across all threads in the warp.",
+      "category": "warp-reduce",
+      "subcategory": "reduce",
+      "parameters": [
+        "unsigned mask",
+        "T var"
+      ],
+      "return_type": "T",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-reduce-functions"
+    },
+    {
+      "api_name": "__reduce_or_sync",
+      "full_signature": "T __reduce_or_sync(unsigned mask, T var)",
+      "description": "Synchronous warp-level OR reduction. Computes bitwise OR of var across all threads in the warp.",
+      "category": "warp-reduce",
+      "subcategory": "reduce",
+      "parameters": [
+        "unsigned mask",
+        "T var"
+      ],
+      "return_type": "T",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-reduce-functions"
+    },
+    {
+      "api_name": "__reduce_xor_sync",
+      "full_signature": "T __reduce_xor_sync(unsigned mask, T var)",
+      "description": "Synchronous warp-level XOR reduction. Computes bitwise XOR of var across all threads in the warp.",
+      "category": "warp-reduce",
+      "subcategory": "reduce",
+      "parameters": [
+        "unsigned mask",
+        "T var"
+      ],
+      "return_type": "T",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-reduce-functions"
+    },
+    {
+      "api_name": "__match_any_sync",
+      "full_signature": "unsigned __match_any_sync(unsigned mask, T var)",
+      "description": "Returns mask of threads in warp where var matches any other thread's value.",
+      "category": "warp-match",
+      "subcategory": "match",
+      "parameters": [
+        "unsigned mask",
+        "T var"
+      ],
+      "return_type": "unsigned",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-match-functions"
+    },
+    {
+      "api_name": "__match_all_sync",
+      "full_signature": "unsigned __match_all_sync(unsigned mask, T var, int* predicate)",
+      "description": "Returns mask of threads in warp where all threads have the same value of var.",
+      "category": "warp-match",
+      "subcategory": "match",
+      "parameters": [
+        "unsigned mask",
+        "T var",
+        "int* predicate"
+      ],
+      "return_type": "unsigned",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-match-functions"
+    },
+    {
+      "api_name": "cudaMalloc",
+      "full_signature": "cudaError_t cudaMalloc(void** devPtr, size_t size)",
+      "description": "Allocates memory on the GPU device. Similar to malloc() in C, but allocates memory accessible by the GPU.",
+      "category": "memory-management",
+      "subcategory": "allocation",
+      "parameters": [
+        "void** devPtr",
+        "size_t size"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMallocHost",
+      "full_signature": "cudaError_t cudaMallocHost(void** ptr, size_t size)",
+      "description": "Allocates page-locked host memory. Accessible by host and device, enables faster DMA transfers.",
+      "category": "memory-management",
+      "subcategory": "allocation",
+      "parameters": [
+        "void** ptr",
+        "size_t size"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMallocManaged",
+      "full_signature": "cudaError_t cudaMallocManaged(void** devPtr, size_t size, unsigned int flags)",
+      "description": "Allocates unified memory accessible from both host and device.",
+      "category": "memory-management",
+      "subcategory": "allocation",
+      "parameters": [
+        "void** devPtr",
+        "size_t size",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMallocPitch",
+      "full_signature": "cudaError_t cudaMallocPitch(void** devPtr, size_t* pitch, size_t width, size_t height)",
+      "description": "Allocates pitched device memory. pitch ensures memory access efficiency for 2D arrays.",
+      "category": "memory-management",
+      "subcategory": "allocation",
+      "parameters": [
+        "void** devPtr",
+        "size_t* pitch",
+        "size_t width",
+        "size_t height"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMallocArray",
+      "full_signature": "cudaError_t cudaMallocArray(cudaArray_t* array, const cudaChannelFormatDesc* desc, size_t width, size_t height)",
+      "description": "Allocates an array on the GPU device.",
+      "category": "memory-management",
+      "subcategory": "allocation",
+      "parameters": [
+        "cudaArray_t* array",
+        "const cudaChannelFormatDesc* desc",
+        "size_t width",
+        "size_t height"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMalloc3D",
+      "full_signature": "cudaError_t cudaMalloc3D(cudaPitchedPtr* pitchedDevPtr, cudaExtent extent)",
+      "description": "Allocates a pitched 3D array in device memory.",
+      "category": "memory-management",
+      "subcategory": "allocation",
+      "parameters": [
+        "cudaPitchedPtr* pitchedDevPtr",
+        "cudaExtent extent"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMalloc3DArray",
+      "full_signature": "cudaError_t cudaMalloc3DArray(cudaArray_t* array, const cudaChannelFormatDesc* desc, cudaExtent extent)",
+      "description": "Allocates a 3D array in device memory.",
+      "category": "memory-management",
+      "subcategory": "allocation",
+      "parameters": [
+        "cudaArray_t* array",
+        "const cudaChannelFormatDesc* desc",
+        "cudaExtent extent"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMallocMipmappedArray",
+      "full_signature": "cudaError_t cudaMallocMipmappedArray(cudaMipmappedArray_t* mipmapArray, const cudaChannelFormatDesc* desc, cudaExtent extent, unsigned int numLevels)",
+      "description": "Allocates a mipmapped array on the GPU device.",
+      "category": "memory-management",
+      "subcategory": "allocation",
+      "parameters": [
+        "cudaMipmappedArray_t* mipmapArray",
+        "const cudaChannelFormatDesc* desc",
+        "cudaExtent extent",
+        "unsigned int numLevels"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaFree",
+      "full_signature": "cudaError_t cudaFree(void* devPtr)",
+      "description": "Frees memory on the GPU device. Must be called with pointer obtained from cudaMalloc.",
+      "category": "memory-management",
+      "subcategory": "deallocation",
+      "parameters": [
+        "void* devPtr"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaFreeHost",
+      "full_signature": "cudaError_t cudaFreeHost(void* ptr)",
+      "description": "Frees page-locked host memory allocated by cudaMallocHost.",
+      "category": "memory-management",
+      "subcategory": "deallocation",
+      "parameters": [
+        "void* ptr"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaFreeArray",
+      "full_signature": "cudaError_t cudaFreeArray(cudaArray_t array)",
+      "description": "Frees an array on the GPU device.",
+      "category": "memory-management",
+      "subcategory": "deallocation",
+      "parameters": [
+        "cudaArray_t array"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaFreeMipmappedArray",
+      "full_signature": "cudaError_t cudaFreeMipmappedArray(cudaMipmappedArray_t mipmapArray)",
+      "description": "Frees a mipmapped array on the GPU device.",
+      "category": "memory-management",
+      "subcategory": "deallocation",
+      "parameters": [
+        "cudaMipmappedArray_t mipmapArray"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaHostAlloc",
+      "full_signature": "cudaError_t cudaHostAlloc(void** pHost, size_t size, unsigned int flags)",
+      "description": "Allocates page-locked host memory with specified flags.",
+      "category": "memory-management",
+      "subcategory": "host-memory",
+      "parameters": [
+        "void** pHost",
+        "size_t size",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaHostRegister",
+      "full_signature": "cudaError_t cudaHostRegister(void* ptr, size_t size, unsigned int flags)",
+      "description": "Registers an existing host memory range for use with CUDA.",
+      "category": "memory-management",
+      "subcategory": "host-memory",
+      "parameters": [
+        "void* ptr",
+        "size_t size",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaHostUnregister",
+      "full_signature": "cudaError_t cudaHostUnregister(void* ptr)",
+      "description": "Unregisters a host memory range that was registered with CUDA.",
+      "category": "memory-management",
+      "subcategory": "host-memory",
+      "parameters": [
+        "void* ptr"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpy",
+      "full_signature": "cudaError_t cudaMemcpy(void* dst, const void* src, size_t count, cudaMemcpyKind kind)",
+      "description": "Copies data between host and device memory. Blocking call that waits for transfer to complete.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "void* dst",
+        "const void* src",
+        "size_t count",
+        "cudaMemcpyKind kind"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpyAsync",
+      "full_signature": "cudaError_t cudaMemcpyAsync(void* dst, const void* src, size_t count, cudaMemcpyKind kind, cudaStream_t stream)",
+      "description": "Copies data between host and device asynchronously. Non-blocking, requires stream argument.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "void* dst",
+        "const void* src",
+        "size_t count",
+        "cudaMemcpyKind kind",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpy2D",
+      "full_signature": "cudaError_t cudaMemcpy2D(void* dst, size_t dpitch, const void* src, size_t spitch, size_t width, size_t height, cudaMemcpyKind kind)",
+      "description": "Copies a 2D array between host and device memory.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "void* dst",
+        "size_t dpitch",
+        "const void* src",
+        "size_t spitch",
+        "size_t width",
+        "size_t height",
+        "cudaMemcpyKind kind"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpy2DAsync",
+      "full_signature": "cudaError_t cudaMemcpy2DAsync(void* dst, size_t dpitch, const void* src, size_t spitch, size_t width, size_t height, cudaMemcpyKind kind, cudaStream_t stream)",
+      "description": "Asynchronously copies a 2D array between host and device memory.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "void* dst",
+        "size_t dpitch",
+        "const void* src",
+        "size_t spitch",
+        "size_t width",
+        "size_t height",
+        "cudaMemcpyKind kind",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpy3D",
+      "full_signature": "cudaError_t cudaMemcpy3D(const cudaMemcpy3DParms* p)",
+      "description": "Copies a 3D array between host and device memory.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "const cudaMemcpy3DParms* p"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpy3DAsync",
+      "full_signature": "cudaError_t cudaMemcpy3DAsync(const cudaMemcpy3DParms* p, cudaStream_t stream)",
+      "description": "Asynchronously copies a 3D array between host and device memory.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "const cudaMemcpy3DParms* p",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpyPeer",
+      "full_signature": "cudaError_t cudaMemcpyPeer(void* dst, int dstDevice, const void* src, int srcDevice, size_t count)",
+      "description": "Copies memory between two devices.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "void* dst",
+        "int dstDevice",
+        "const void* src",
+        "int srcDevice",
+        "size_t count"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpyPeerAsync",
+      "full_signature": "cudaError_t cudaMemcpyPeerAsync(void* dst, int dstDevice, const void* src, int srcDevice, size_t count, cudaStream_t stream)",
+      "description": "Asynchronously copies memory between two devices.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "void* dst",
+        "int dstDevice",
+        "const void* src",
+        "int srcDevice",
+        "size_t count",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpyToSymbol",
+      "full_signature": "cudaError_t cudaMemcpyToSymbol(const void* symbol, const void* src, size_t count, size_t offset, cudaMemcpyKind kind)",
+      "description": "Copies memory to a symbol (constant memory) on the device.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "const void* symbol",
+        "const void* src",
+        "size_t count",
+        "size_t offset",
+        "cudaMemcpyKind kind"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpyFromSymbol",
+      "full_signature": "cudaError_t cudaMemcpyFromSymbol(void* dst, const void* symbol, size_t count, size_t offset, cudaMemcpyKind kind)",
+      "description": "Copies from a symbol (constant memory) on the device to host memory.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "void* dst",
+        "const void* symbol",
+        "size_t count",
+        "size_t offset",
+        "cudaMemcpyKind kind"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpyToSymbolAsync",
+      "full_signature": "cudaError_t cudaMemcpyToSymbolAsync(const void* symbol, const void* src, size_t count, size_t offset, cudaMemcpyKind kind, cudaStream_t stream)",
+      "description": "Asynchronously copies to a symbol (constant memory) on the device.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "const void* symbol",
+        "const void* src",
+        "size_t count",
+        "size_t offset",
+        "cudaMemcpyKind kind",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemcpyFromSymbolAsync",
+      "full_signature": "cudaError_t cudaMemcpyFromSymbolAsync(void* dst, const void* symbol, size_t count, size_t offset, cudaMemcpyKind kind, cudaStream_t stream)",
+      "description": "Asynchronously copies from a device symbol to host memory.",
+      "category": "memory-management",
+      "subcategory": "copy",
+      "parameters": [
+        "void* dst",
+        "const void* symbol",
+        "size_t count",
+        "size_t offset",
+        "cudaMemcpyKind kind",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemset",
+      "full_signature": "cudaError_t cudaMemset(void* devPtr, int value, size_t count)",
+      "description": "Fills device memory with a specific value. Useful for initializing arrays.",
+      "category": "memory-management",
+      "subcategory": "set",
+      "parameters": [
+        "void* devPtr",
+        "int value",
+        "size_t count"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemsetAsync",
+      "full_signature": "cudaError_t cudaMemsetAsync(void* devPtr, int value, size_t count, cudaStream_t stream)",
+      "description": "Asynchronously fills device memory with a specific value.",
+      "category": "memory-management",
+      "subcategory": "set",
+      "parameters": [
+        "void* devPtr",
+        "int value",
+        "size_t count",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemset2D",
+      "full_signature": "cudaError_t cudaMemset2D(void* devPtr, size_t pitch, int value, size_t width, size_t height)",
+      "description": "Fills a 2D array with a specific value.",
+      "category": "memory-management",
+      "subcategory": "set",
+      "parameters": [
+        "void* devPtr",
+        "size_t pitch",
+        "int value",
+        "size_t width",
+        "size_t height"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemset2DAsync",
+      "full_signature": "cudaError_t cudaMemset2DAsync(void* devPtr, size_t pitch, int value, size_t width, size_t height, cudaStream_t stream)",
+      "description": "Asynchronously fills a 2D array with a specific value.",
+      "category": "memory-management",
+      "subcategory": "set",
+      "parameters": [
+        "void* devPtr",
+        "size_t pitch",
+        "int value",
+        "size_t width",
+        "size_t height",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemset3D",
+      "full_signature": "cudaError_t cudaMemset3D(cudaPitchedPtr pitchedDevPtr, int value, cudaExtent extent)",
+      "description": "Fills a 3D array with a specific value.",
+      "category": "memory-management",
+      "subcategory": "set",
+      "parameters": [
+        "cudaPitchedPtr pitchedDevPtr",
+        "int value",
+        "cudaExtent extent"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemset3DAsync",
+      "full_signature": "cudaError_t cudaMemset3DAsync(cudaPitchedPtr pitchedDevPtr, int value, cudaExtent extent, cudaStream_t stream)",
+      "description": "Asynchronously fills a 3D array with a specific value.",
+      "category": "memory-management",
+      "subcategory": "set",
+      "parameters": [
+        "cudaPitchedPtr pitchedDevPtr",
+        "int value",
+        "cudaExtent extent",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemGetInfo",
+      "full_signature": "cudaError_t cudaMemGetInfo(size_t* free, size_t* total)",
+      "description": "Returns free and total device memory information.",
+      "category": "memory-management",
+      "subcategory": "query",
+      "parameters": [
+        "size_t* free",
+        "size_t* total"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemAdvise",
+      "full_signature": "cudaError_t cudaMemAdvise(const void* devPtr, size_t count, cudaMemoryAdvise advice, int device)",
+      "description": "Advises the CUDA driver about the usage pattern for a memory region.",
+      "category": "memory-management",
+      "subcategory": "management",
+      "parameters": [
+        "const void* devPtr",
+        "size_t count",
+        "cudaMemoryAdvise advice",
+        "int device"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "cudaMemPrefetchAsync",
+      "full_signature": "cudaError_t cudaMemPrefetchAsync(const void* devPtr, size_t count, int dstDevice, cudaStream_t stream)",
+      "description": "Prefetches memory to the specified device.",
+      "category": "memory-management",
+      "subcategory": "management",
+      "parameters": [
+        "const void* devPtr",
+        "size_t count",
+        "int dstDevice",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html"
+    },
+    {
+      "api_name": "__syncthreads",
+      "full_signature": "void __syncthreads()",
+      "description": "Synchronizes all threads in a block. Used to ensure memory writes are visible between threads before proceeding.",
+      "category": "thread-synchronization",
+      "subcategory": "barrier",
+      "parameters": [],
+      "return_type": "void",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions"
+    },
+    {
+      "api_name": "__syncthreads_count",
+      "full_signature": "int __syncthreads_count(int predicate)",
+      "description": "Synchronizes all threads and returns the number of threads for which predicate is non-zero.",
+      "category": "thread-synchronization",
+      "subcategory": "barrier",
+      "parameters": [
+        "int predicate"
+      ],
+      "return_type": "int",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions"
+    },
+    {
+      "api_name": "__syncthreads_and",
+      "full_signature": "int __syncthreads_and(int predicate)",
+      "description": "Synchronizes and returns 1 if all threads in the block have non-zero predicate, 0 otherwise.",
+      "category": "thread-synchronization",
+      "subcategory": "barrier",
+      "parameters": [
+        "int predicate"
+      ],
+      "return_type": "int",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions"
+    },
+    {
+      "api_name": "__syncthreads_or",
+      "full_signature": "int __syncthreads_or(int predicate)",
+      "description": "Synchronizes and returns 1 if any thread in the block has non-zero predicate, 0 otherwise.",
+      "category": "thread-synchronization",
+      "subcategory": "barrier",
+      "parameters": [
+        "int predicate"
+      ],
+      "return_type": "int",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions"
+    },
+    {
+      "api_name": "__threadfence",
+      "full_signature": "void __threadfence()",
+      "description": "Ensures that all global memory accesses by all threads in the block are visible to all threads in the device before any thread in the block proceeds.",
+      "category": "memory-fence",
+      "subcategory": "fence",
+      "parameters": [],
+      "return_type": "void",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#memory-fence-functions"
+    },
+    {
+      "api_name": "__threadfence_block",
+      "full_signature": "void __threadfence_block()",
+      "description": "Ensures that all global memory accesses by all threads in the block are visible to all threads in the block before any thread proceeds.",
+      "category": "memory-fence",
+      "subcategory": "fence",
+      "parameters": [],
+      "return_type": "void",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#memory-fence-functions"
+    },
+    {
+      "api_name": "__threadfence_system",
+      "full_signature": "void __threadfence_system()",
+      "description": "Ensures that all global memory accesses by all threads in the device are visible to all threads in the system before any thread proceeds.",
+      "category": "memory-fence",
+      "subcategory": "fence",
+      "parameters": [],
+      "return_type": "void",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#memory-fence-functions"
+    },
+    {
+      "api_name": "cudaStreamCreate",
+      "full_signature": "cudaError_t cudaStreamCreate(cudaStream_t* stream)",
+      "description": "Creates a stream for asynchronous operations.",
+      "category": "stream-management",
+      "subcategory": "create",
+      "parameters": [
+        "cudaStream_t* stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamCreateWithFlags",
+      "full_signature": "cudaError_t cudaStreamCreateWithFlags(cudaStream_t* stream, unsigned int flags)",
+      "description": "Creates a stream with specified flags.",
+      "category": "stream-management",
+      "subcategory": "create",
+      "parameters": [
+        "cudaStream_t* stream",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamCreateWithPriority",
+      "full_signature": "cudaError_t cudaStreamCreateWithPriority(cudaStream_t* stream, unsigned int flags, int priority)",
+      "description": "Creates a stream with specified priority.",
+      "category": "stream-management",
+      "subcategory": "create",
+      "parameters": [
+        "cudaStream_t* stream",
+        "unsigned int flags",
+        "int priority"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamDestroy",
+      "full_signature": "cudaError_t cudaStreamDestroy(cudaStream_t stream)",
+      "description": "Destroys a stream created by cudaStreamCreate.",
+      "category": "stream-management",
+      "subcategory": "destroy",
+      "parameters": [
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamSynchronize",
+      "full_signature": "cudaError_t cudaStreamSynchronize(cudaStream_t stream)",
+      "description": "Synchronizes all operations in the specified stream.",
+      "category": "stream-management",
+      "subcategory": "synchronize",
+      "parameters": [
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamWaitEvent",
+      "full_signature": "cudaError_t cudaStreamWaitEvent(cudaStream_t stream, cudaEvent_t event, unsigned int flags)",
+      "description": "Makes a stream wait for an event.",
+      "category": "stream-management",
+      "subcategory": "wait",
+      "parameters": [
+        "cudaStream_t stream",
+        "cudaEvent_t event",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamAddCallback",
+      "full_signature": "cudaError_t cudaStreamAddCallback(cudaStream_t stream, cudaStreamCallback_t callback, void* userData, unsigned int flags)",
+      "description": "Adds a callback to a stream.",
+      "category": "stream-management",
+      "subcategory": "callback",
+      "parameters": [
+        "cudaStream_t stream",
+        "cudaStreamCallback_t callback",
+        "void* userData",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamQuery",
+      "full_signature": "cudaError_t cudaStreamQuery(cudaStream_t stream)",
+      "description": "Queries if a stream has completed all operations.",
+      "category": "stream-management",
+      "subcategory": "query",
+      "parameters": [
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamBeginCapture",
+      "full_signature": "cudaError_t cudaStreamBeginCapture(cudaStream_t stream, cudaStreamCaptureMode mode)",
+      "description": "Begins capturing a stream.",
+      "category": "stream-management",
+      "subcategory": "capture",
+      "parameters": [
+        "cudaStream_t stream",
+        "cudaStreamCaptureMode mode"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamEndCapture",
+      "full_signature": "cudaError_t cudaStreamEndCapture(cudaStream_t stream, cudaGraph_t* graph)",
+      "description": "Ends capturing a stream and returns a graph.",
+      "category": "stream-management",
+      "subcategory": "capture",
+      "parameters": [
+        "cudaStream_t stream",
+        "cudaGraph_t* graph"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamIsCapturing",
+      "full_signature": "cudaError_t cudaStreamIsCapturing(cudaStream_t stream, cudaStreamCaptureStatus* status)",
+      "description": "Checks if a stream is in capture mode.",
+      "category": "stream-management",
+      "subcategory": "capture",
+      "parameters": [
+        "cudaStream_t stream",
+        "cudaStreamCaptureStatus* status"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamAttachMemAsync",
+      "full_signature": "cudaError_t cudaStreamAttachMemAsync(cudaStream_t stream, void* devPtr, size_t length, unsigned int flags)",
+      "description": "Attaches memory to a stream.",
+      "category": "stream-management",
+      "subcategory": "memory",
+      "parameters": [
+        "cudaStream_t stream",
+        "void* devPtr",
+        "size_t length",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamGetCaptureInfo",
+      "full_signature": "cudaError_t cudaStreamGetCaptureInfo(cudaStream_t stream, cudaStreamCaptureStatus* status, cuuint64_t* id)",
+      "description": "Gets capture information for a stream.",
+      "category": "stream-management",
+      "subcategory": "capture",
+      "parameters": [
+        "cudaStream_t stream",
+        "cudaStreamCaptureStatus* status",
+        "cuuint64_t* id"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamGetDevice",
+      "full_signature": "cudaError_t cudaStreamGetDevice(cudaStream_t stream, int* device)",
+      "description": "Returns the device associated with a stream.",
+      "category": "stream-management",
+      "subcategory": "query",
+      "parameters": [
+        "cudaStream_t stream",
+        "int* device"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamGetFlags",
+      "full_signature": "cudaError_t cudaStreamGetFlags(cudaStream_t stream, unsigned int* flags)",
+      "description": "Returns the flags associated with a stream.",
+      "category": "stream-management",
+      "subcategory": "query",
+      "parameters": [
+        "cudaStream_t stream",
+        "unsigned int* flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamGetId",
+      "full_signature": "cudaError_t cudaStreamGetId(cudaStream_t stream, cuuint64_t* streamId)",
+      "description": "Returns the unique ID for a stream.",
+      "category": "stream-management",
+      "subcategory": "query",
+      "parameters": [
+        "cudaStream_t stream",
+        "cuuint64_t* streamId"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamGetPriority",
+      "full_signature": "cudaError_t cudaStreamGetPriority(cudaStream_t stream, int* priority)",
+      "description": "Returns the priority of a stream.",
+      "category": "stream-management",
+      "subcategory": "query",
+      "parameters": [
+        "cudaStream_t stream",
+        "int* priority"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamSetAttribute",
+      "full_signature": "cudaError_t cudaStreamSetAttribute(cudaStream_t stream, cudaStreamAttrID attr, void* value)",
+      "description": "Sets an attribute on a stream.",
+      "category": "stream-management",
+      "subcategory": "attribute",
+      "parameters": [
+        "cudaStream_t stream",
+        "cudaStreamAttrID attr",
+        "void* value"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamGetAttribute",
+      "full_signature": "cudaError_t cudaStreamGetAttribute(cudaStream_t stream, cudaStreamAttrID attr, void* value)",
+      "description": "Gets an attribute on a stream.",
+      "category": "stream-management",
+      "subcategory": "attribute",
+      "parameters": [
+        "cudaStream_t stream",
+        "cudaStreamAttrID attr",
+        "void* value"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamCopyAttributes",
+      "full_signature": "cudaError_t cudaStreamCopyAttributes(cudaStream_t dst, cudaStream_t src)",
+      "description": "Copies attributes from one stream to another.",
+      "category": "stream-management",
+      "subcategory": "attribute",
+      "parameters": [
+        "cudaStream_t dst",
+        "cudaStream_t src"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaStreamUpdateCaptureDependencies",
+      "full_signature": "cudaError_t cudaStreamUpdateCaptureDependencies(cudaStream_t stream, cudaGraphNode_t* dependencies, size_t numDependencies, unsigned int flags)",
+      "description": "Updates capture dependencies for a stream.",
+      "category": "stream-management",
+      "subcategory": "capture",
+      "parameters": [
+        "cudaStream_t stream",
+        "cudaGraphNode_t* dependencies",
+        "size_t numDependencies",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaThreadExchangeStreamCaptureMode",
+      "full_signature": "cudaError_t cudaThreadExchangeStreamCaptureMode(cudaStreamCaptureMode* mode)",
+      "description": "Exchanges the stream capture mode for the calling thread.",
+      "category": "stream-management",
+      "subcategory": "capture",
+      "parameters": [
+        "cudaStreamCaptureMode* mode"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaCtxResetPersistingL2Cache",
+      "full_signature": "cudaError_t cudaCtxResetPersistingL2Cache()",
+      "description": "Resets the persisting L2 cache.",
+      "category": "stream-management",
+      "subcategory": "cache",
+      "parameters": [],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__STREAM.html"
+    },
+    {
+      "api_name": "cudaEventCreate",
+      "full_signature": "cudaError_t cudaEventCreate(cudaEvent_t* event)",
+      "description": "Creates an event for timing and synchronization.",
+      "category": "event-management",
+      "subcategory": "create",
+      "parameters": [
+        "cudaEvent_t* event"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html"
+    },
+    {
+      "api_name": "cudaEventCreateWithFlags",
+      "full_signature": "cudaError_t cudaEventCreateWithFlags(cudaEvent_t* event, unsigned int flags)",
+      "description": "Creates an event with specified flags.",
+      "category": "event-management",
+      "subcategory": "create",
+      "parameters": [
+        "cudaEvent_t* event",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html"
+    },
+    {
+      "api_name": "cudaEventDestroy",
+      "full_signature": "cudaError_t cudaEventDestroy(cudaEvent_t event)",
+      "description": "Destroys an event.",
+      "category": "event-management",
+      "subcategory": "destroy",
+      "parameters": [
+        "cudaEvent_t event"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html"
+    },
+    {
+      "api_name": "cudaEventRecord",
+      "full_signature": "cudaError_t cudaEventRecord(cudaEvent_t event, cudaStream_t stream)",
+      "description": "Records an event in a stream.",
+      "category": "event-management",
+      "subcategory": "record",
+      "parameters": [
+        "cudaEvent_t event",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html"
+    },
+    {
+      "api_name": "cudaEventRecordWithFlags",
+      "full_signature": "cudaError_t cudaEventRecordWithFlags(cudaEvent_t event, cudaStream_t stream, unsigned int flags)",
+      "description": "Records an event in a stream with specified flags.",
+      "category": "event-management",
+      "subcategory": "record",
+      "parameters": [
+        "cudaEvent_t event",
+        "cudaStream_t stream",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html"
+    },
+    {
+      "api_name": "cudaEventQuery",
+      "full_signature": "cudaError_t cudaEventQuery(cudaEvent_t event)",
+      "description": "Queries if an event has completed.",
+      "category": "event-management",
+      "subcategory": "query",
+      "parameters": [
+        "cudaEvent_t event"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html"
+    },
+    {
+      "api_name": "cudaEventSynchronize",
+      "full_signature": "cudaError_t cudaEventSynchronize(cudaEvent_t event)",
+      "description": "Waits for an event to complete.",
+      "category": "event-management",
+      "subcategory": "synchronize",
+      "parameters": [
+        "cudaEvent_t event"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html"
+    },
+    {
+      "api_name": "cudaEventElapsedTime",
+      "full_signature": "cudaError_t cudaEventElapsedTime(float* ms, cudaEvent_t start, cudaEvent_t end)",
+      "description": "Calculates elapsed time between two events.",
+      "category": "event-management",
+      "subcategory": "timing",
+      "parameters": [
+        "float* ms",
+        "cudaEvent_t start",
+        "cudaEvent_t end"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html"
+    },
+    {
+      "api_name": "cudaChooseDevice",
+      "full_signature": "cudaError_t cudaChooseDevice(int* device, const cudaDeviceProp* prop)",
+      "description": "Selects the device most closely matching the given properties.",
+      "category": "device-management",
+      "subcategory": "selection",
+      "parameters": [
+        "int* device",
+        "const cudaDeviceProp* prop"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaGetDevice",
+      "full_signature": "cudaError_t cudaGetDevice(int* device)",
+      "description": "Returns the current device for the calling host thread.",
+      "category": "device-management",
+      "subcategory": "query",
+      "parameters": [
+        "int* device"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaSetDevice",
+      "full_signature": "cudaError_t cudaSetDevice(int device)",
+      "description": "Sets the current device for the calling host thread.",
+      "category": "device-management",
+      "subcategory": "selection",
+      "parameters": [
+        "int device"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaGetDeviceCount",
+      "full_signature": "cudaError_t cudaGetDeviceCount(int* count)",
+      "description": "Returns the number of available devices.",
+      "category": "device-management",
+      "subcategory": "query",
+      "parameters": [
+        "int* count"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaGetDeviceFlags",
+      "full_signature": "cudaError_t cudaGetDeviceFlags(unsigned int* flags)",
+      "description": "Returns the current device flags.",
+      "category": "device-management",
+      "subcategory": "query",
+      "parameters": [
+        "unsigned int* flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaGetDeviceProperties",
+      "full_signature": "cudaError_t cudaGetDeviceProperties(cudaDeviceProp* prop, int device)",
+      "description": "Returns information about the specified device.",
+      "category": "device-management",
+      "subcategory": "query",
+      "parameters": [
+        "cudaDeviceProp* prop",
+        "int device"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaInitDevice",
+      "full_signature": "cudaError_t cudaInitDevice(int device)",
+      "description": "Initializes a device for the calling host thread.",
+      "category": "device-management",
+      "subcategory": "initialization",
+      "parameters": [
+        "int device"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaSetDeviceFlags",
+      "full_signature": "cudaError_t cudaSetDeviceFlags(unsigned int flags)",
+      "description": "Sets the current device flags.",
+      "category": "device-management",
+      "subcategory": "configuration",
+      "parameters": [
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaSetValidDevices",
+      "full_signature": "cudaError_t cudaSetValidDevices(int* deviceArray, int count)",
+      "description": "Sets valid devices for the calling host thread.",
+      "category": "device-management",
+      "subcategory": "selection",
+      "parameters": [
+        "int* deviceArray",
+        "int count"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceGetAttribute",
+      "full_signature": "cudaError_t cudaDeviceGetAttribute(int* value, cudaDeviceAttr attr, int device)",
+      "description": "Returns information about a device attribute.",
+      "category": "device-management",
+      "subcategory": "attribute",
+      "parameters": [
+        "int* value",
+        "cudaDeviceAttr attr",
+        "int device"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceGetByPCIBusId",
+      "full_signature": "cudaError_t cudaDeviceGetByPCIBusId(int* device, const char* pciBusId)",
+      "description": "Returns the device associated with a PCI bus ID.",
+      "category": "device-management",
+      "subcategory": "pci",
+      "parameters": [
+        "int* device",
+        "const char* pciBusId"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceGetPCIBusId",
+      "full_signature": "cudaError_t cudaDeviceGetPCIBusId(char* pciBusId, int len, int device)",
+      "description": "Returns the PCI bus ID of a device.",
+      "category": "device-management",
+      "subcategory": "pci",
+      "parameters": [
+        "char* pciBusId",
+        "int len",
+        "int device"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceGetStreamPriorityRange",
+      "full_signature": "cudaError_t cudaDeviceGetStreamPriorityRange(int* leastPriority, int* greatestPriority)",
+      "description": "Returns the range of stream priorities.",
+      "category": "device-management",
+      "subcategory": "stream",
+      "parameters": [
+        "int* leastPriority",
+        "int* greatestPriority"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceGetCacheConfig",
+      "full_signature": "cudaError_t cudaDeviceGetCacheConfig(cudaFuncCache* cacheConfig)",
+      "description": "Returns the current cache configuration.",
+      "category": "device-management",
+      "subcategory": "cache",
+      "parameters": [
+        "cudaFuncCache* cacheConfig"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceSetCacheConfig",
+      "full_signature": "cudaError_t cudaDeviceSetCacheConfig(cudaFuncCache cacheConfig)",
+      "description": "Sets the cache configuration for the device.",
+      "category": "device-management",
+      "subcategory": "cache",
+      "parameters": [
+        "cudaFuncCache cacheConfig"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceGetDefaultMemPool",
+      "full_signature": "cudaError_t cudaDeviceGetDefaultMemPool(cudaMemPool_t* memPool, int device)",
+      "description": "Returns the default memory pool for a device.",
+      "category": "device-management",
+      "subcategory": "memory-pool",
+      "parameters": [
+        "cudaMemPool_t* memPool",
+        "int device"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceGetMemPool",
+      "full_signature": "cudaError_t cudaDeviceGetMemPool(cudaMemPool_t* memPool, int device)",
+      "description": "Returns the current memory pool for a device.",
+      "category": "device-management",
+      "subcategory": "memory-pool",
+      "parameters": [
+        "cudaMemPool_t* memPool",
+        "int device"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceSetMemPool",
+      "full_signature": "cudaError_t cudaDeviceSetMemPool(int device, cudaMemPool_t memPool)",
+      "description": "Sets the memory pool for a device.",
+      "category": "device-management",
+      "subcategory": "memory-pool",
+      "parameters": [
+        "int device",
+        "cudaMemPool_t memPool"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceGetLimit",
+      "full_signature": "cudaError_t cudaDeviceGetLimit(size_t* pValue, cudaLimit limit)",
+      "description": "Returns the current value of a device limit.",
+      "category": "device-management",
+      "subcategory": "limit",
+      "parameters": [
+        "size_t* pValue",
+        "cudaLimit limit"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceSetLimit",
+      "full_signature": "cudaError_t cudaDeviceSetLimit(cudaLimit limit, size_t value)",
+      "description": "Sets a device limit.",
+      "category": "device-management",
+      "subcategory": "limit",
+      "parameters": [
+        "cudaLimit limit",
+        "size_t value"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceSynchronize",
+      "full_signature": "cudaError_t cudaDeviceSynchronize()",
+      "description": "Synchronizes all threads on the device.",
+      "category": "device-management",
+      "subcategory": "synchronization",
+      "parameters": [],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceFlushGPUDirectRDMAWrites",
+      "full_signature": "cudaError_t cudaDeviceFlushGPUDirectRDMAWrites(cudaGPUDirectRDMAWritesOrdering ordering, int device)",
+      "description": "Flushes GPU direct RDMA writes.",
+      "category": "device-management",
+      "subcategory": "rdma",
+      "parameters": [
+        "cudaGPUDirectRDMAWritesOrdering ordering",
+        "int device"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaIpcCloseMemHandle",
+      "full_signature": "cudaError_t cudaIpcCloseMemHandle(void* devPtr)",
+      "description": "Closes a memory handle for IPC.",
+      "category": "device-management",
+      "subcategory": "ipc",
+      "parameters": [
+        "void* devPtr"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaIpcGetEventHandle",
+      "full_signature": "cudaError_t cudaIpcGetEventHandle(cudaIpcEventHandle_t* handle, cudaEvent_t event)",
+      "description": "Gets an event handle for IPC.",
+      "category": "device-management",
+      "subcategory": "ipc",
+      "parameters": [
+        "cudaIpcEventHandle_t* handle",
+        "cudaEvent_t event"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaIpcGetMemHandle",
+      "full_signature": "cudaError_t cudaIpcGetMemHandle(cudaIpcMemHandle_t* handle, void* devPtr)",
+      "description": "Gets a memory handle for IPC.",
+      "category": "device-management",
+      "subcategory": "ipc",
+      "parameters": [
+        "cudaIpcMemHandle_t* handle",
+        "void* devPtr"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaIpcOpenEventHandle",
+      "full_signature": "cudaError_t cudaIpcOpenEventHandle(cudaEvent_t* event, cudaIpcEventHandle_t handle)",
+      "description": "Opens an event handle for IPC.",
+      "category": "device-management",
+      "subcategory": "ipc",
+      "parameters": [
+        "cudaEvent_t* event",
+        "cudaIpcEventHandle_t handle"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaIpcOpenMemHandle",
+      "full_signature": "cudaError_t cudaIpcOpenMemHandle(void** devPtr, cudaIpcMemHandle_t handle, unsigned int flags)",
+      "description": "Opens a memory handle for IPC.",
+      "category": "device-management",
+      "subcategory": "ipc",
+      "parameters": [
+        "void** devPtr",
+        "cudaIpcMemHandle_t handle",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceGetP2PAttribute",
+      "full_signature": "cudaError_t cudaDeviceGetP2PAttribute(int* value, cudaDeviceP2PAttr attr, int srcDevice, int dstDevice)",
+      "description": "Returns information about P2P access capability between devices.",
+      "category": "device-management",
+      "subcategory": "p2p",
+      "parameters": [
+        "int* value",
+        "cudaDeviceP2PAttr attr",
+        "int srcDevice",
+        "int dstDevice"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaDeviceReset",
+      "full_signature": "cudaError_t cudaDeviceReset()",
+      "description": "Resets the device and clears all state.",
+      "category": "device-management",
+      "subcategory": "reset",
+      "parameters": [],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html"
+    },
+    {
+      "api_name": "cudaConfigureCall",
+      "full_signature": "cudaError_t cudaConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem, cudaStream_t stream)",
+      "description": "Configures a kernel launch.",
+      "category": "execution-control",
+      "subcategory": "launch",
+      "parameters": [
+        "dim3 gridDim",
+        "dim3 blockDim",
+        "size_t sharedMem",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration"
+    },
+    {
+      "api_name": "cudaLaunchKernel",
+      "full_signature": "cudaError_t cudaLaunchKernel(const void* func, dim3 gridDim, dim3 blockDim, void** args, size_t sharedMem, cudaStream_t stream)",
+      "description": "Launches a kernel on the device.",
+      "category": "execution-control",
+      "subcategory": "launch",
+      "parameters": [
+        "const void* func",
+        "dim3 gridDim",
+        "dim3 blockDim",
+        "void** args",
+        "size_t sharedMem",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration"
+    },
+    {
+      "api_name": "cudaLaunchCooperativeKernel",
+      "full_signature": "cudaError_t cudaLaunchCooperativeKernel(const void* func, dim3 gridDim, dim3 blockDim, void** args, size_t sharedMem, cudaStream_t stream)",
+      "description": "Launches a cooperative kernel on the device.",
+      "category": "execution-control",
+      "subcategory": "launch",
+      "parameters": [
+        "const void* func",
+        "dim3 gridDim",
+        "dim3 blockDim",
+        "void** args",
+        "size_t sharedMem",
+        "cudaStream_t stream"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration"
+    },
+    {
+      "api_name": "cudaLaunchCooperativeKernelMultiDevice",
+      "full_signature": "cudaError_t cudaLaunchCooperativeKernelMultiDevice(const cudaLaunchKernelMultDeviceParams* params, unsigned int flags)",
+      "description": "Launches a cooperative kernel on multiple devices.",
+      "category": "execution-control",
+      "subcategory": "launch",
+      "parameters": [
+        "const cudaLaunchKernelMultDeviceParams* params",
+        "unsigned int flags"
+      ],
+      "return_type": "cudaError_t",
+      "documentation_url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration"
+    }
+  ]
+}
