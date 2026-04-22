@@ -22,6 +22,8 @@ from .extractor.knowledge_storage import KnowledgeStorage
 from .quality import CitationTracker, FeedbackAPI
 from .collector.embedder import QwenEmbedder, MockEmbedder, APIEmbedder as STEmbedder
 from .config import get_config
+from .gpu_collector.storage import GPUStorage
+from .mapper.engine import MapperEngine
 
 logger = logging.getLogger(__name__)
 
@@ -749,6 +751,107 @@ class KnowledgeQueryService:
             checks.append(f"考虑临时规避方案: {bug.workarounds[0]}")
 
         return checks
+
+    async def semantic_cuda_to_npu_mapping(
+        self,
+        cuda_api_name: str,
+        min_confidence: float = 0.75,
+        limit: int = 5,
+    ) -> List["SemanticMappingResult"]:
+        """
+        CUDA API → AscendC API 语义检索
+
+        实现混合检索策略：
+        1. 精确匹配 cross_platform_mappings（已有显式映射）
+        2. 语义检索：使用 gpu_apis 的 description_embedding 检索 ascend_apis
+
+        Args:
+            cuda_api_name: CUDA API 名称（如 "__shfl_up_sync"、"cudaMalloc"）
+            min_confidence: 最低置信度阈值，默认 0.75
+            limit: 返回结果数量限制
+
+        Returns:
+            SemanticMappingResult 列表
+        """
+        results = []
+
+        # Step 1: 精确匹配 cross_platform_mappings
+        try:
+            # 初始化 MapperEngine
+            mapper = MapperEngine(storage=GPUStorage(use_mock=False))
+            exact_match = mapper.find_mapping(cuda_api_name)
+            if exact_match:
+                results.append(SemanticMappingResult(
+                    npu_api=exact_match.npu_api,
+                    confidence=exact_match.confidence,
+                    matched_description=exact_match.adaptation_notes,
+                    source="exact",  # 精确映射
+                ))
+                return results[:limit]  # 精确匹配优先，直接返回
+        except Exception as e:
+            logger.warning(f"Exact mapping lookup failed for {cuda_api_name}: {e}")
+
+        # Step 2: 查询 gpu_apis 获取 description 和 embedding
+        try:
+            gpu_storage = GPUStorage(use_mock=False)
+            gpu_api = gpu_storage.get_api_by_name(cuda_api_name)
+
+            if not gpu_api:
+                logger.info(f"No GPU API found in knowledge base: {cuda_api_name}")
+                return results if results else []
+
+            # Step 3: 使用 gpu_apis 的 description embedding 查 ascend_apis
+            if gpu_api.description_embedding is None:
+                logger.info(f"GPU API {cuda_api_name} has no embedding, cannot perform semantic search")
+                return results if results else []
+
+            # 查询 ascend_apis collection
+            collection = self._chroma.get_collection("ascend_apis")
+            search_results = collection.query(
+                query_embeddings=[gpu_api.description_embedding],
+                n_results=limit + 1,  # 多查一个因为可能包含自己
+            )
+
+            if not search_results or not search_results.get("ids"):
+                return results if results else []
+
+            # Step 4: 置信度过滤并转换结果
+            for i, distance in enumerate(search_results["distances"][0]):
+                # Distance → Confidence 转换: confidence = max(0, 1 - distance / 0.25)
+                # distance < 0.25 → confidence ≥ 0.75
+                confidence = max(0.0, 1.0 - distance / 0.25)
+
+                if confidence < min_confidence:
+                    continue
+
+                # 排除与查询 API 同名的情况（不匹配自己）
+                matched_api_name = search_results["metadatas"][0][i].get("api_name", "")
+                if matched_api_name.lower() == cuda_api_name.lower():
+                    continue
+
+                results.append(SemanticMappingResult(
+                    npu_api=matched_api_name,
+                    confidence=confidence,
+                    matched_description=search_results["documents"][0][i],
+                    source="inferred",  # 语义推断
+                ))
+
+            # 按置信度排序
+            results.sort(key=lambda x: x.confidence, reverse=True)
+            return results[:limit]
+
+        except Exception as e:
+            logger.error(f"Semantic mapping search failed for {cuda_api_name}: {e}")
+            return results if results else []
+
+
+@dataclass
+class SemanticMappingResult:
+    """语义映射结果"""
+    npu_api: str
+    confidence: float
+    matched_description: str
+    source: str = "exact"  # "exact" | "inferred"
 
 
 @dataclass

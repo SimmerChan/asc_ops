@@ -154,6 +154,30 @@ class MCPTools:
                     "required": ["gpu_api"]
                 }
             ),
+            MCPTool(
+                name="semantic_cuda_to_npu_mapping",
+                description="CUDA API → AscendC API 语义检索。给定任意 CUDA API 名称，返回最相似的 AscendC API 及置信度。先精确匹配已知映射，未命中则进行语义向量检索。",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "cuda_api_name": {
+                            "type": "string",
+                            "description": "CUDA API 名称，如 '__shfl_up_sync', 'cudaMalloc', '__reduce_add_sync' 等"
+                        },
+                        "min_confidence": {
+                            "type": "number",
+                            "default": 0.75,
+                            "description": "最低置信度阈值，低于此值的结果将被过滤"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "default": 5,
+                            "description": "返回结果数量限制"
+                        }
+                    },
+                    "required": ["cuda_api_name"]
+                }
+            ),
         ]
 
     def list_tools(self) -> List[MCPTool]:
@@ -197,6 +221,8 @@ class MCPTools:
                 return await self._query_api(arguments, knowledge_query_service)
             elif name == "query_cross_platform":
                 return await self._query_cross_platform(arguments, mapper_engine)
+            elif name == "semantic_cuda_to_npu_mapping":
+                return await self._semantic_cuda_to_npu_mapping(arguments, knowledge_query_service)
             else:
                 return MCPToolResult(
                     content=[MCPContentBlock(type="text", text=f"Unknown tool: {name}")],
@@ -376,6 +402,48 @@ class MCPTools:
                     lines.append(f"- {sim.gpu_api} → {sim.npu_api} ({sim.equivalence_level.value})")
             else:
                 lines.append("\n未找到相似映射。建议查阅昇腾官方文档。")
+
+        text = "\n".join(lines)
+        return MCPToolResult(content=[MCPContentBlock(type="text", text=text)])
+
+    async def _semantic_cuda_to_npu_mapping(
+        self,
+        args: dict,
+        service,
+    ) -> MCPToolResult:
+        """semantic_cuda_to_npu_mapping 工具实现"""
+        if service is None:
+            return MCPToolResult(
+                content=[MCPContentBlock(
+                    type="text",
+                    text="知识查询服务未初始化。请检查 Redis 和 ChromaDB 连接。"
+                )],
+                is_error=True
+            )
+
+        result = await service.semantic_cuda_to_npu_mapping(
+            cuda_api_name=args["cuda_api_name"],
+            min_confidence=args.get("min_confidence", 0.75),
+            limit=args.get("limit", 5),
+        )
+
+        lines = [f"# CUDA → AscendC 语义检索: {args['cuda_api_name']}"]
+
+        if not result:
+            lines.append("\n未找到匹配的 AscendC API。")
+            lines.append("\n可能原因：")
+            lines.append("1. 该 CUDA API 尚未入库（需要先采集到 gpu_apis collection）")
+            lines.append("2. 语义相似度低于阈值（0.75）")
+            lines.append("\n建议：查阅昇腾官方 CANN 文档获取 AscendC API 信息")
+        else:
+            lines.append(f"\n找到 {len(result)} 个匹配的 AscendC API\n")
+
+            for i, mapping in enumerate(result, 1):
+                lines.append(f"\n## 匹配 {i}")
+                lines.append(f"- AscendC API: **{mapping.npu_api}**")
+                lines.append(f"- 置信度: {mapping.confidence:.2f}")
+                lines.append(f"- 来源: {mapping.source}")
+                lines.append(f"- 匹配描述: {mapping.matched_description[:200]}...")
 
         text = "\n".join(lines)
         return MCPToolResult(content=[MCPContentBlock(type="text", text=text)])

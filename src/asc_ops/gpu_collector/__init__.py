@@ -23,6 +23,12 @@ from .extractors import (
 )
 from .storage import GPUStorage, GPUStorageError
 from .collectors import CUTLASSCollector, cuBLASCollector
+from .doc_scraper import CUDADocScraper, CUDAAPIScrapedData, CUDACollectionResult
+from .llm_semantic_analyzer import (
+    CUDASemanticAnalyzer,
+    SemanticAnalysisResult,
+    BatchAnalysisResult,
+)
 
 __all__ = [
     # Models
@@ -45,4 +51,12 @@ __all__ = [
     # Collectors
     "CUTLASSCollector",
     "cuBLASCollector",
+    # CUDA API Scraping
+    "CUDADocScraper",
+    "CUDAAPIScrapedData",
+    "CUDACollectionResult",
+    # LLM Semantic Analysis
+    "CUDASemanticAnalyzer",
+    "SemanticAnalysisResult",
+    "BatchAnalysisResult",
 ]
