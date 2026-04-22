@@ -2,8 +2,8 @@
 
 **Last Updated:** 2026-04-22
 **Total APIs to Collect:** ~150
-**Collected:** 46
-**Coverage:** ~31%
+**Collected:** 63
+**Coverage:** ~42%
 
 ## 1. Warp-Level Intrinsics (SIMD-like Operations)
 
@@ -46,8 +46,8 @@
 
 | API Name | Signature | Status |
 |----------|-----------|--------|
-| `__match_any_sync` | `unsigned __match_any_sync(unsigned mask, T var)` | ❌ Pending |
-| `__match_all_sync` | `unsigned __match_all_sync(unsigned mask, T var)` | ❌ Pending |
+| `__match_any_sync` | `unsigned __match_any_sync(unsigned mask, T var)` | ✅ Collected |
+| `__match_all_sync` | `unsigned __match_all_sync(unsigned mask, T var)` | ✅ Collected |
 
 ---
 
@@ -217,14 +217,14 @@
 
 ## Summary
 
-### Collected APIs: 46
+### Collected APIs: 63
 
 | Category | Collected | Total | Coverage |
 |----------|-----------|-------|----------|
 | Warp Shuffle | 4 | 4 | 100% |
 | Warp Vote | 3 | 5 | 60% |
 | Warp Reduce | 7 | 7 | 100% |
-| Warp Match | 0 | 2 | 0% |
+| Warp Match | 2 | 2 | 100% |
 | Thread Sync | 4 | 4 | 100% |
 | Memory Fence | 3 | 3 | 100% |
 | Memory Allocation | 4 | 8 | 50% |
@@ -232,15 +232,15 @@
 | Memory Set | 2 | 6 | 33% |
 | Stream | 6 | 12 | 50% |
 | Event | 7 | 7 | 100% |
-| Device | 0 | 10 | 0% |
-| Execution | 0 | 4 | 0% |
+| Device | 11 | 11 | 100% |
+| Execution | 4 | 4 | 100% |
 
 ### Priority Collection Order
 
-1. **Memory APIs** - High importance for GPU-NPU migration (18 remaining)
-2. **Stream APIs** - Critical for async programming (6 remaining)
-3. **Device APIs** - Basic runtime functions (10 remaining)
-4. **Execution Control** - Kernel launch related (4 remaining)
+1. **Memory 3D/Peer APIs** - Memory copy/set operations (8 remaining)
+2. **Stream capture/query APIs** - Graph capture support (6 remaining)
+3. **Memory managed/mipmapped** - Unified memory support (4 remaining)
+4. **Legacy Warp Vote** - __all, __any deprecated APIs (2 remaining)
 
 ### Data Source
 

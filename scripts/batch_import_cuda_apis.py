@@ -37,6 +37,9 @@ from asc_ops.gpu_collector.doc_scraper import (
     MEMORY_FENCE_APIS,
     STREAM_APIS,
     EVENT_APIS,
+    DEVICE_APIS,
+    EXECUTION_APIS,
+    WARP_MATCH_APIS,
 )
 from asc_ops.gpu_collector.llm_semantic_analyzer import (
     CUDASemanticAnalyzer,
@@ -125,6 +128,24 @@ async def collect_cuda_apis(
         event_apis = await scraper.scrape_event_apis()
         all_apis.extend(event_apis)
         logger.info(f"Collected {len(event_apis)} event APIs")
+
+        # 采集 Device APIs
+        logger.info(f"Collecting {len(DEVICE_APIS)} device APIs...")
+        device_apis = await scraper.scrape_device_apis()
+        all_apis.extend(device_apis)
+        logger.info(f"Collected {len(device_apis)} device APIs")
+
+        # 采集 Execution APIs
+        logger.info(f"Collecting {len(EXECUTION_APIS)} execution APIs...")
+        execution_apis = await scraper.scrape_execution_apis()
+        all_apis.extend(execution_apis)
+        logger.info(f"Collected {len(execution_apis)} execution APIs")
+
+        # 采集 Warp Match APIs
+        logger.info(f"Collecting {len(WARP_MATCH_APIS)} warp match APIs...")
+        warp_match_apis = await scraper.scrape_warp_match_apis()
+        all_apis.extend(warp_match_apis)
+        logger.info(f"Collected {len(warp_match_apis)} warp match APIs")
 
         logger.info(f"Total collected: {len(all_apis)} APIs")
         return all_apis

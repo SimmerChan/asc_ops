@@ -120,6 +120,35 @@ MEMORY_FENCE_APIS = [
     "__threadfence_system",
 ]
 
+# CUDA Device Management APIs
+DEVICE_APIS = [
+    "cudaChooseDevice",
+    "cudaGetDevice",
+    "cudaSetDevice",
+    "cudaGetDeviceCount",
+    "cudaGetDeviceProperties",
+    "cudaDeviceSynchronize",
+    "cudaDeviceReset",
+    "cudaDeviceGetCacheConfig",
+    "cudaDeviceSetCacheConfig",
+    "cudaDeviceGetLimit",
+    "cudaDeviceSetLimit",
+]
+
+# CUDA Execution Control APIs
+EXECUTION_APIS = [
+    "cudaConfigureCall",
+    "cudaLaunchKernel",
+    "cudaLaunchCooperativeKernel",
+    "cudaLaunchCooperativeKernelMultiDevice",
+]
+
+# Warp Match APIs
+WARP_MATCH_APIS = [
+    "__match_any_sync",
+    "__match_all_sync",
+]
+
 # 分类映射
 API_CATEGORY_MAPPING: Dict[str, tuple[str, str]] = {
     # Warp Shuffle
@@ -606,6 +635,57 @@ class CUDADocScraper:
                 logger.info(f"Using fallback data for event API: {api_name}")
             else:
                 logger.warning(f"No fallback data for event API: {api_name}")
+        return apis
+
+    async def scrape_device_apis(self) -> List[CUDAAPIScrapedData]:
+        """
+        采集 CUDA Device Management API 信息
+
+        Returns:
+            CUDAAPIScrapedData 列表
+        """
+        apis = []
+        for api_name in DEVICE_APIS:
+            fallback = self._get_fallback_device_api_data(api_name)
+            if fallback:
+                apis.append(fallback)
+                logger.info(f"Using fallback data for device API: {api_name}")
+            else:
+                logger.warning(f"No fallback data for device API: {api_name}")
+        return apis
+
+    async def scrape_execution_apis(self) -> List[CUDAAPIScrapedData]:
+        """
+        采集 CUDA Execution Control API 信息
+
+        Returns:
+            CUDAAPIScrapedData 列表
+        """
+        apis = []
+        for api_name in EXECUTION_APIS:
+            fallback = self._get_fallback_execution_api_data(api_name)
+            if fallback:
+                apis.append(fallback)
+                logger.info(f"Using fallback data for execution API: {api_name}")
+            else:
+                logger.warning(f"No fallback data for execution API: {api_name}")
+        return apis
+
+    async def scrape_warp_match_apis(self) -> List[CUDAAPIScrapedData]:
+        """
+        采集 CUDA Warp Match API 信息
+
+        Returns:
+            CUDAAPIScrapedData 列表
+        """
+        apis = []
+        for api_name in WARP_MATCH_APIS:
+            fallback = self._get_fallback_warp_match_api_data(api_name)
+            if fallback:
+                apis.append(fallback)
+                logger.info(f"Using fallback data for warp match API: {api_name}")
+            else:
+                logger.warning(f"No fallback data for warp match API: {api_name}")
         return apis
 
     def _get_fallback_thread_sync_api_data(self, api_name: str) -> Optional[CUDAAPIScrapedData]:
@@ -1401,6 +1481,256 @@ class CUDADocScraper:
                 parameters=["const cudaLaunchKernelMultDeviceParams* params", "unsigned int flags"],
                 return_type="cudaError_t",
                 documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration",
+            ),
+        }
+        return fallback_data.get(api_name)
+
+    def _get_fallback_device_api_data(self, api_name: str) -> Optional[CUDAAPIScrapedData]:
+        """获取 Device API 的预定义数据"""
+        fallback_data = {
+            "cudaChooseDevice": CUDAAPIScrapedData(
+                api_name="cudaChooseDevice",
+                full_signature="cudaError_t cudaChooseDevice(int* device, const cudaDeviceProp* prop)",
+                description="Selects the device most closely matching the given properties.",
+                category="device-management",
+                subcategory="selection",
+                parameters=["int* device", "const cudaDeviceProp* prop"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html",
+            ),
+            "cudaGetDevice": CUDAAPIScrapedData(
+                api_name="cudaGetDevice",
+                full_signature="cudaError_t cudaGetDevice(int* device)",
+                description="Returns the current device for the calling host thread.",
+                category="device-management",
+                subcategory="query",
+                parameters=["int* device"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html",
+            ),
+            "cudaSetDevice": CUDAAPIScrapedData(
+                api_name="cudaSetDevice",
+                full_signature="cudaError_t cudaSetDevice(int device)",
+                description="Sets the current device for the calling host thread.",
+                category="device-management",
+                subcategory="selection",
+                parameters=["int device"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html",
+            ),
+            "cudaGetDeviceCount": CUDAAPIScrapedData(
+                api_name="cudaGetDeviceCount",
+                full_signature="cudaError_t cudaGetDeviceCount(int* count)",
+                description="Returns the number of available devices.",
+                category="device-management",
+                subcategory="query",
+                parameters=["int* count"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html",
+            ),
+            "cudaGetDeviceProperties": CUDAAPIScrapedData(
+                api_name="cudaGetDeviceProperties",
+                full_signature="cudaError_t cudaGetDeviceProperties(cudaDeviceProp* prop, int device)",
+                description="Returns information about the specified device.",
+                category="device-management",
+                subcategory="query",
+                parameters=["cudaDeviceProp* prop", "int device"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html",
+            ),
+            "cudaDeviceSynchronize": CUDAAPIScrapedData(
+                api_name="cudaDeviceSynchronize",
+                full_signature="cudaError_t cudaDeviceSynchronize()",
+                description="Synchronizes all threads on the device.",
+                category="device-management",
+                subcategory="synchronization",
+                parameters=[],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html",
+            ),
+            "cudaDeviceReset": CUDAAPIScrapedData(
+                api_name="cudaDeviceReset",
+                full_signature="cudaError_t cudaDeviceReset()",
+                description="Resets the device and clears all state.",
+                category="device-management",
+                subcategory="reset",
+                parameters=[],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html",
+            ),
+            "cudaDeviceGetCacheConfig": CUDAAPIScrapedData(
+                api_name="cudaDeviceGetCacheConfig",
+                full_signature="cudaError_t cudaDeviceGetCacheConfig(cudaFuncCache* cacheConfig)",
+                description="Returns the current cache configuration.",
+                category="device-management",
+                subcategory="cache",
+                parameters=["cudaFuncCache* cacheConfig"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html",
+            ),
+            "cudaDeviceSetCacheConfig": CUDAAPIScrapedData(
+                api_name="cudaDeviceSetCacheConfig",
+                full_signature="cudaError_t cudaDeviceSetCacheConfig(cudaFuncCache cacheConfig)",
+                description="Sets the cache configuration for the device.",
+                category="device-management",
+                subcategory="cache",
+                parameters=["cudaFuncCache cacheConfig"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html",
+            ),
+            "cudaDeviceGetLimit": CUDAAPIScrapedData(
+                api_name="cudaDeviceGetLimit",
+                full_signature="cudaError_t cudaDeviceGetLimit(size_t* pValue, cudaLimit limit)",
+                description="Returns the current value of a device limit.",
+                category="device-management",
+                subcategory="limit",
+                parameters=["size_t* pValue", "cudaLimit limit"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html",
+            ),
+            "cudaDeviceSetLimit": CUDAAPIScrapedData(
+                api_name="cudaDeviceSetLimit",
+                full_signature="cudaError_t cudaDeviceSetLimit(cudaLimit limit, size_t value)",
+                description="Sets a device limit.",
+                category="device-management",
+                subcategory="limit",
+                parameters=["cudaLimit limit", "size_t value"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html",
+            ),
+            # Warp Match APIs
+            "__match_any_sync": CUDAAPIScrapedData(
+                api_name="__match_any_sync",
+                full_signature="unsigned __match_any_sync(unsigned mask, T var)",
+                description="Returns mask of threads in warp where var matches any other thread.",
+                category="warp-match",
+                subcategory="match",
+                parameters=["unsigned mask", "T var"],
+                return_type="unsigned",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-match-functions",
+            ),
+            "__match_all_sync": CUDAAPIScrapedData(
+                api_name="__match_all_sync",
+                full_signature="unsigned __match_all_sync(unsigned mask, T var, int* predicate)",
+                description="Returns mask of threads in warp where all threads have the same value of var.",
+                category="warp-match",
+                subcategory="match",
+                parameters=["unsigned mask", "T var", "int* predicate"],
+                return_type="unsigned",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-match-functions",
+            ),
+            # Execution APIs
+            "cudaConfigureCall": CUDAAPIScrapedData(
+                api_name="cudaConfigureCall",
+                full_signature="cudaError_t cudaConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem, cudaStream_t stream)",
+                description="Configures a kernel launch.",
+                category="execution-control",
+                subcategory="launch",
+                parameters=["dim3 gridDim", "dim3 blockDim", "size_t sharedMem", "cudaStream_t stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration",
+            ),
+            "cudaLaunchKernel": CUDAAPIScrapedData(
+                api_name="cudaLaunchKernel",
+                full_signature="cudaError_t cudaLaunchKernel(const void* func, dim3 gridDim, dim3 blockDim, void** args, size_t sharedMem, cudaStream_t stream)",
+                description="Launches a kernel on the device.",
+                category="execution-control",
+                subcategory="launch",
+                parameters=["const void* func", "dim3 gridDim", "dim3 blockDim", "void** args", "size_t sharedMem", "cudaStream_t stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration",
+            ),
+            "cudaLaunchCooperativeKernel": CUDAAPIScrapedData(
+                api_name="cudaLaunchCooperativeKernel",
+                full_signature="cudaError_t cudaLaunchCooperativeKernel(const void* func, dim3 gridDim, dim3 blockDim, void** args, size_t sharedMem, cudaStream_t stream)",
+                description="Launches a cooperative kernel on the device.",
+                category="execution-control",
+                subcategory="launch",
+                parameters=["const void* func", "dim3 gridDim", "dim3 blockDim", "void** args", "size_t sharedMem", "cudaStream_t stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration",
+            ),
+            "cudaLaunchCooperativeKernelMultiDevice": CUDAAPIScrapedData(
+                api_name="cudaLaunchCooperativeKernelMultiDevice",
+                full_signature="cudaError_t cudaLaunchCooperativeKernelMultiDevice(const cudaLaunchKernelMultDeviceParams* params, unsigned int flags)",
+                description="Launches a cooperative kernel on multiple devices.",
+                category="execution-control",
+                subcategory="launch",
+                parameters=["const cudaLaunchKernelMultDeviceParams* params", "unsigned int flags"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration",
+            ),
+        }
+        return fallback_data.get(api_name)
+
+    def _get_fallback_execution_api_data(self, api_name: str) -> Optional[CUDAAPIScrapedData]:
+        """获取 Execution API 的预定义数据"""
+        fallback_data = {
+            "cudaConfigureCall": CUDAAPIScrapedData(
+                api_name="cudaConfigureCall",
+                full_signature="cudaError_t cudaConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem, cudaStream_t stream)",
+                description="Configures a kernel launch.",
+                category="execution-control",
+                subcategory="launch",
+                parameters=["dim3 gridDim", "dim3 blockDim", "size_t sharedMem", "cudaStream_t stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration",
+            ),
+            "cudaLaunchKernel": CUDAAPIScrapedData(
+                api_name="cudaLaunchKernel",
+                full_signature="cudaError_t cudaLaunchKernel(const void* func, dim3 gridDim, dim3 blockDim, void** args, size_t sharedMem, cudaStream_t stream)",
+                description="Launches a kernel on the device.",
+                category="execution-control",
+                subcategory="launch",
+                parameters=["const void* func", "dim3 gridDim", "dim3 blockDim", "void** args", "size_t sharedMem", "cudaStream_t stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration",
+            ),
+            "cudaLaunchCooperativeKernel": CUDAAPIScrapedData(
+                api_name="cudaLaunchCooperativeKernel",
+                full_signature="cudaError_t cudaLaunchCooperativeKernel(const void* func, dim3 gridDim, dim3 blockDim, void** args, size_t sharedMem, cudaStream_t stream)",
+                description="Launches a cooperative kernel on the device.",
+                category="execution-control",
+                subcategory="launch",
+                parameters=["const void* func", "dim3 gridDim", "dim3 blockDim", "void** args", "size_t sharedMem", "cudaStream_t stream"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration",
+            ),
+            "cudaLaunchCooperativeKernelMultiDevice": CUDAAPIScrapedData(
+                api_name="cudaLaunchCooperativeKernelMultiDevice",
+                full_signature="cudaError_t cudaLaunchCooperativeKernelMultiDevice(const cudaLaunchKernelMultDeviceParams* params, unsigned int flags)",
+                description="Launches a cooperative kernel on multiple devices.",
+                category="execution-control",
+                subcategory="launch",
+                parameters=["const cudaLaunchKernelMultDeviceParams* params", "unsigned int flags"],
+                return_type="cudaError_t",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#execution-configuration",
+            ),
+        }
+        return fallback_data.get(api_name)
+
+    def _get_fallback_warp_match_api_data(self, api_name: str) -> Optional[CUDAAPIScrapedData]:
+        """获取 Warp Match API 的预定义数据"""
+        fallback_data = {
+            "__match_any_sync": CUDAAPIScrapedData(
+                api_name="__match_any_sync",
+                full_signature="unsigned __match_any_sync(unsigned mask, T var)",
+                description="Returns mask of threads in warp where var matches any other thread.",
+                category="warp-match",
+                subcategory="match",
+                parameters=["unsigned mask", "T var"],
+                return_type="unsigned",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-match-functions",
+            ),
+            "__match_all_sync": CUDAAPIScrapedData(
+                api_name="__match_all_sync",
+                full_signature="unsigned __match_all_sync(unsigned mask, T var, int* predicate)",
+                description="Returns mask of threads in warp where all threads have the same value of var.",
+                category="warp-match",
+                subcategory="match",
+                parameters=["unsigned mask", "T var", "int* predicate"],
+                return_type="unsigned",
+                documentation_url="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-match-functions",
             ),
         }
         return fallback_data.get(api_name)
