@@ -87,15 +87,16 @@ class TestSemanticCudaToNpuMapping:
 
         # 设置 ChromaDB 返回语义检索结果
         mock_collection = MagicMock()
-        # 注意: 根据实际公式, confidence = max(0, 1 - distance/0.25)
-        # distance = 0.05 -> confidence = 0.8 >= 0.75 ✓
-        # distance = 0.15 -> confidence = 0.4 < 0.75 ✗
+        # 注意: 根据新公式, confidence = max(0, 1 - distance/1.0)
+        # distance = 0.05 -> confidence = 0.95 >= 0.75 ✓
+        # distance = 0.15 -> confidence = 0.85 >= 0.75 ✓
+        # (Both pass with the new formula since threshold is 1.0)
         mock_collection.query.return_value = {
             "ids": [["api1", "api2"]],
-            "distances": [[0.05, 0.15]],  # 置信度: 0.8, 0.4
+            "distances": [[0.05, 0.15]],  # 置信度: 0.95, 0.85
             "metadatas": [[
-                {"api_name": "WarpShift"},
-                {"api_name": "WarpExchange"},
+                {"name": "WarpShift"},
+                {"name": "WarpExchange"},
             ]],
             "documents": [
                 ["Shuffle data between warp threads", "Exchange warp data"]
@@ -127,10 +128,10 @@ class TestSemanticCudaToNpuMapping:
                     min_confidence=0.75,
                 )
 
-        # 验证：distance=0.05 -> confidence=0.8 >= 0.75 应该返回
-        # distance=0.15 -> confidence=0.4 < 0.75 被过滤
-        assert len(result) == 1
+        # 验证：Both results pass the new threshold
+        assert len(result) == 2
         assert result[0].npu_api == "WarpShift"
+        assert result[0].confidence == 0.95
         assert result[0].source == "inferred"
 
     @pytest.mark.asyncio
@@ -177,17 +178,17 @@ class TestSemanticCudaToNpuMapping:
         )
 
         # ChromaDB 返回多个结果
-        # distance = 0.05 -> confidence = 0.8 >= 0.75 ✓
-        # distance = 0.15 -> confidence = 0.4 < 0.75 ✗
-        # distance = 0.30 -> confidence = 0.0 < 0.75 ✗
+        # distance = 0.05 -> confidence = 0.95 >= 0.75 ✓
+        # distance = 0.26 -> confidence = 0.74 < 0.75 ✗ (first that fails)
+        # distance = 0.30 -> confidence = 0.70 < 0.75 ✗
         mock_collection = MagicMock()
         mock_collection.query.return_value = {
             "ids": [["api1", "api2", "api3"]],
-            "distances": [[0.05, 0.15, 0.30]],
+            "distances": [[0.05, 0.26, 0.30]],
             "metadatas": [[
-                {"api_name": "WarpShift"},
-                {"api_name": "WarpExchange"},
-                {"api_name": "SomeOtherAPI"},
+                {"name": "WarpShift"},
+                {"name": "WarpExchange"},
+                {"name": "SomeOtherAPI"},
             ]],
             "documents": [
                 ["High similarity shuffle", "Medium shuffle", "Low shuffle"]
@@ -219,6 +220,7 @@ class TestSemanticCudaToNpuMapping:
         # 验证
         assert len(result) == 1
         assert result[0].npu_api == "WarpShift"
+        assert result[0].confidence == 0.95
         assert result[0].source == "inferred"
 
 

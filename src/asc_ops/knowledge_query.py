@@ -780,7 +780,8 @@ class KnowledgeQueryService:
             # 初始化 MapperEngine
             mapper = MapperEngine(storage=GPUStorage(use_mock=False))
             exact_match = mapper.find_mapping(cuda_api_name)
-            if exact_match:
+            # 检查是否有有效映射（npu_api 不能是 'N/A'）
+            if exact_match and exact_match.npu_api and exact_match.npu_api != "N/A":
                 results.append(SemanticMappingResult(
                     npu_api=exact_match.npu_api,
                     confidence=exact_match.confidence,
@@ -817,15 +818,17 @@ class KnowledgeQueryService:
 
             # Step 4: 置信度过滤并转换结果
             for i, distance in enumerate(search_results["distances"][0]):
-                # Distance → Confidence 转换: confidence = max(0, 1 - distance / 0.25)
-                # distance < 0.25 → confidence ≥ 0.75
-                confidence = max(0.0, 1.0 - distance / 0.25)
+                # Distance → Confidence 转换: confidence = max(0, 1 - distance / 1.0)
+                # cosine distance 范围 [0, 1]，distance=0 表示完全匹配，distance=1 表示完全不匹配
+                # 阈值 1.0 意味着 distance >= 1.0 时 confidence = 0
+                threshold = 1.0
+                confidence = max(0.0, 1.0 - distance / threshold)
 
                 if confidence < min_confidence:
                     continue
 
                 # 排除与查询 API 同名的情况（不匹配自己）
-                matched_api_name = search_results["metadatas"][0][i].get("api_name", "")
+                matched_api_name = search_results["metadatas"][0][i].get("name", "")
                 if matched_api_name.lower() == cuda_api_name.lower():
                     continue
 

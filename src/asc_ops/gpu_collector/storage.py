@@ -336,12 +336,22 @@ class GPUStorage:
         # ChromaDB 精确查询
         results = self._apis_collection.get(
             where={"api_name": api_name},
+            include=["documents", "metadatas", "embeddings"]
         )
         if results and results["ids"]:
             # 重建 GPUAPIInfo 对象
             doc = results["documents"][0] if results["documents"] else ""
             meta = results["metadatas"][0] if results["metadatas"] else {}
-            embedding = results["embeddings"][0] if results.get("embeddings") else None
+            # ChromaDB 返回的 embeddings 是 (1, 1024) numpy array，需要先取 [0] 再转换
+            emb_raw = results.get("embeddings")
+            if emb_raw is not None and len(emb_raw) > 0:
+                embedding = emb_raw[0]
+                # 转换为 list 以便后续处理
+                import numpy as np
+                if isinstance(embedding, np.ndarray):
+                    embedding = embedding.tolist()
+            else:
+                embedding = None
             from .models import GPUPlatform
             return GPUAPIInfo(
                 api_id=results["ids"][0],
