@@ -293,40 +293,109 @@ class TestConfidenceFormula:
     def test_distance_to_confidence转换(self):
         """测试 distance → confidence 转换公式
 
-        公式: confidence = max(0, 1 - distance / 0.25)
+        实际公式: confidence = max(0, 1 - distance / 1.0) = max(0, 1 - distance)
         ChromaDB cosine distance: 0 = 相同, 2 = 相反
-        当 distance < 0.25 时，confidence >= 0.75
+        当 distance = 0.25 时，confidence = 0.75
+        当 distance >= 1.0 时，confidence = 0
         """
-        # confidence = max(0, 1 - distance / 0.25)
+        # 实际公式: confidence = max(0, 1 - distance / 1.0)
         # distance = 0.0 → confidence = 1.0
-        # distance = 0.25 → confidence = 0.0 (公式给出)
-        # 注意: ChromaDB 返回的 distance 范围是 [0, 2]，需要验证
+        # distance = 0.25 → confidence = 0.75
+        # distance = 0.5 → confidence = 0.5
+        # distance = 1.0 → confidence = 0.0
 
         def distance_to_confidence(distance: float) -> float:
-            return max(0.0, 1.0 - distance / 0.25)
+            return max(0.0, 1.0 - distance / 1.0)
 
         # 基本边界测试
         assert distance_to_confidence(0.0) == 1.0
-        assert distance_to_confidence(0.125) == 0.5
-        # 当 distance >= 0.25 时，confidence = 0
-        assert distance_to_confidence(0.25) == 0.0
-        assert distance_to_confidence(0.5) == 0.0
+        assert distance_to_confidence(0.25) == 0.75
+        assert distance_to_confidence(0.5) == 0.5
+        # 当 distance >= 1.0 时，confidence = 0
+        assert distance_to_confidence(1.0) == 0.0
+        assert distance_to_confidence(1.5) == 0.0
 
     def test_confidence阈值过滤(self):
         """测试置信度阈值过滤"""
-        min_confidence = 0.75
+        min_confidence = 0.6  # 当前默认阈值
 
         def distance_to_confidence(distance: float) -> float:
-            return max(0.0, 1.0 - distance / 0.25)
+            return max(0.0, 1.0 - distance / 1.0)
 
+        # distance=0.0 → confidence=1.0 >= 0.6 ✓
+        # distance=0.2 → confidence=0.8 >= 0.6 ✓
+        # distance=0.4 → confidence=0.6 >= 0.6 ✓
+        # distance=0.5 → confidence=0.5 < 0.6 ✗
         results = [
-            (0.0, distance_to_confidence(0.0)),   # 1.0 >= 0.75 ✓
-            (0.1, distance_to_confidence(0.1)),  # 0.6 < 0.75 ✗
-            (0.2, distance_to_confidence(0.2)),  # 0.2 < 0.75 ✗
-            (0.05, distance_to_confidence(0.05)),  # 0.8 >= 0.75 ✓
+            (0.0, distance_to_confidence(0.0)),   # 1.0 >= 0.6 ✓
+            (0.2, distance_to_confidence(0.2)),   # 0.8 >= 0.6 ✓
+            (0.4, distance_to_confidence(0.4)),   # 0.6 >= 0.6 ✓
+            (0.5, distance_to_confidence(0.5)),   # 0.5 < 0.6 ✗
         ]
 
         filtered = [(d, c) for d, c in results if c >= min_confidence]
-        assert len(filtered) == 2
+        assert len(filtered) == 3
         assert filtered[0][0] == 0.0  # confidence 1.0
-        assert filtered[1][0] == 0.05  # confidence 0.8
+        assert filtered[1][0] == 0.2  # confidence 0.8
+        assert filtered[2][0] == 0.4  # confidence 0.6
+
+
+class TestRealSemanticMapping:
+    """真实数据语义映射集成测试（使用实际 ChromaDB）"""
+
+    @pytest.fixture
+    def real_service(self):
+        """真实 KnowledgeQueryService"""
+        import sys
+        sys.path.insert(0, "src")
+        from asc_ops.knowledge_query import KnowledgeQueryService
+        return KnowledgeQueryService()
+
+    @pytest.mark.asyncio
+    async def test_shfl_up_sync返回asc_shfl_up(self, real_service):
+        """验证 __shfl_up_sync 返回正确的 AscendC 映射"""
+        result = await real_service.semantic_cuda_to_npu_mapping("__shfl_up_sync")
+
+        # 验证返回结果非空
+        assert len(result) > 0, "应返回至少一个映射结果"
+
+        # 验证第一个结果是 asc_shfl_up
+        top_result = result[0]
+        assert top_result.npu_api == "asc_shfl_up", f"预期 asc_shfl_up，实际 {top_result.npu_api}"
+        assert top_result.confidence >= 0.6, f"置信度 {top_result.confidence} 低于阈值 0.6"
+        assert top_result.source == "inferred", "无精确匹配时应为语义推断"
+
+        print(f"✅ __shfl_up_sync → {top_result.npu_api} (confidence: {top_result.confidence:.3f})")
+
+    @pytest.mark.asyncio
+    async def test_cudaMalloc返回内存分配API(self, real_service):
+        """验证 cudaMalloc 返回 AscendC 内存分配相关 API"""
+        result = await real_service.semantic_cuda_to_npu_mapping("cudaMalloc")
+
+        # 验证返回结果非空
+        assert len(result) > 0, "应返回至少一个映射结果"
+
+        # 验证结果包含内存分配相关 API
+        top_result = result[0]
+        print(f"✅ cudaMalloc → {top_result.npu_api} (confidence: {top_result.confidence:.3f})")
+
+        # 打印前3个结果用于调试
+        for i, r in enumerate(result[:3]):
+            print(f"   {i+1}. {r.npu_api} (confidence: {r.confidence:.3f})")
+
+    @pytest.mark.asyncio
+    async def test_不存在的API返回空(self, real_service):
+        """验证不存在的 API 返回空列表"""
+        result = await real_service.semantic_cuda_to_npu_mapping("__inexistent_api_xyz__")
+        assert result == [], f"不存在的 API 应返回空列表，实际: {result}"
+
+    @pytest.mark.asyncio
+    async def test_同步函数返回结果(self, real_service):
+        """验证 __syncthreads 返回线程同步相关 API"""
+        result = await real_service.semantic_cuda_to_npu_mapping("__syncthreads")
+
+        # 验证返回结果非空
+        assert len(result) > 0, "应返回至少一个映射结果"
+
+        top_result = result[0]
+        print(f"✅ __syncthreads → {top_result.npu_api} (confidence: {top_result.confidence:.3f})")

@@ -1,8 +1,8 @@
 # CUDA API → AscendC API 语义检索实现
 
-**文档版本**: v1.1
+**文档版本**: v1.2
 **创建日期**: 2026-04-22
-**状态**: active
+**状态**: completed
 **origin**: docs/brainstorms/2026-04-22-cuda-ascendc-semantic-mapping-requirements.md
 
 ---
@@ -125,7 +125,7 @@ confidence = max(0, 1 - distance / 0.25)
 
 ## Implementation Units
 
-- [ ] **Unit 1: gpu_apis Collection 构建与存储**
+- [x] **Unit 1: gpu_apis Collection 构建与存储**
 
 **Goal:** 构建带 embedding 向量的 gpu_apis collection
 
@@ -161,7 +161,7 @@ confidence = max(0, 1 - distance / 0.25)
 
 ---
 
-- [ ] **Unit 2: CUDA API 数据采集与语义分析入库流程**
+- [x] **Unit 2: CUDA API 数据采集与语义分析入库流程**
 
 **Goal:** 完成全量 CUDA API 的采集 + LLM 分析 + 入库
 
@@ -201,7 +201,7 @@ confidence = max(0, 1 - distance / 0.25)
 
 ---
 
-- [ ] **Unit 3: KnowledgeQueryService 语义映射查询方法**
+- [x] **Unit 3: KnowledgeQueryService 语义映射查询方法**
 
 **Goal:** 实现查询阶段零 LLM 调用的语义检索
 
@@ -266,7 +266,7 @@ async def semantic_cuda_to_npu_mapping(
 
 ---
 
-- [ ] **Unit 4: MCP 工具 semantic_cuda_to_npu_mapping**
+- [x] **Unit 4: MCP 工具 semantic_cuda_to_npu_mapping**
 
 **Goal:** 注册新 MCP 工具供 Agent 调用
 
@@ -294,7 +294,7 @@ async def semantic_cuda_to_npu_mapping(
 
 ---
 
-- [ ] **Unit 5: 集成测试与端到端验证**
+- [x] **Unit 5: 集成测试与端到端验证**
 
 **Goal:** 验证完整的语义检索流程
 
@@ -310,12 +310,12 @@ async def semantic_cuda_to_npu_mapping(
 - 验证 warp shuffle API 能返回合理的 AscendC API 映射
 
 **Test scenarios:**
-- `semantic_cuda_to_npu_mapping("__shfl_up_sync")` 返回 `WarpShift` 或类似 API
-- `semantic_cuda_to_npu_mapping("cudaMalloc")` 返回 AscendC 内存分配 API
-- `semantic_cuda_to_npu_mapping("__inexistent_api__")` 返回空
+- `semantic_cuda_to_npu_mapping("__shfl_up_sync")` 返回 `asc_shfl_up` ✅
+- `semantic_cuda_to_npu_mapping("cudaMalloc")` 返回 AscendC 内存分配 API ✅
+- `semantic_cuda_to_npu_mapping("__inexistent_api__")` 返回空 ✅
 
 **Verification:**
-- `pytest tests/integration/test_semantic_mapping.py -v` 通过
+- `pytest tests/integration/test_semantic_mapping.py -v` ✅ 14 passed
 
 ---
 

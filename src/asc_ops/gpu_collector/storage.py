@@ -8,6 +8,7 @@ GPU 知识存储
 """
 
 import logging
+import os
 from typing import List, Optional, Dict, Any
 
 from .models import (

@@ -755,7 +755,7 @@ class KnowledgeQueryService:
     async def semantic_cuda_to_npu_mapping(
         self,
         cuda_api_name: str,
-        min_confidence: float = 0.75,
+        min_confidence: float = 0.6,
         limit: int = 5,
     ) -> List["SemanticMappingResult"]:
         """
