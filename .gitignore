@@ -128,3 +128,8 @@ dmypy.json
 *.tmp
 *.bak
 *.swp
+
+# Data files (runtime generated)
+data/chroma_db/
+data/checkpoints/
+data/cuda_apis_*.json
