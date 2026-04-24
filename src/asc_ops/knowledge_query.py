@@ -308,7 +308,7 @@ class KnowledgeQueryService:
     ) -> List[BugFixKnowledge]:
         """根据算子名称查询 Bug 修复知识"""
         try:
-            # 从 Redis 获取该算子的所有 bug IDs
+            # 先尝试从 Redis 获取该算子的所有 bug IDs
             bug_ids_key = f"operator:{operator_name}:bugs"
             bug_ids = self._redis.smembers(bug_ids_key)
 
@@ -316,23 +316,63 @@ class KnowledgeQueryService:
                 # 尝试模糊匹配
                 bug_ids = self._redis.smembers(f"operator:{operator_name.lower()}:bugs")
 
-            if not bug_ids:
+            # 如果 Redis 有数据，从 Redis 获取详细信息
+            if bug_ids:
+                bugs = []
+                for bug_id in list(bug_ids)[:limit]:
+                    bug_key = f"bugfix:{bug_id}"
+                    bug_data = self._redis.hgetall(bug_key)
+                    if bug_data:
+                        bug = self._bug_from_redis(bug_data)
+                        if bug and bug.confidence >= min_confidence:
+                            bugs.append(bug)
+                return bugs
+
+            # Redis 为空，fallback 到 ChromaDB 直接查询
+            return await self._query_bugs_from_chroma(operator_name, min_confidence, limit)
+
+        except Exception as e:
+            logger.error(f"Failed to query bugs for operator {operator_name}: {e}")
+            # 即使 Redis 出错，也尝试从 ChromaDB 查询
+            return await self._query_bugs_from_chroma(operator_name, min_confidence, limit)
+
+    async def _query_bugs_from_chroma(
+        self,
+        operator_name: str,
+        min_confidence: float = 0.5,
+        limit: int = 10,
+    ) -> List[BugFixKnowledge]:
+        """从 ChromaDB 直接查询 Bug 修复知识（Redis fallback）"""
+        try:
+            collection = self._chroma.get_collection("bug_fixes")
+
+            # 模糊匹配 operator_id
+            results = collection.get(
+                where={"operator_id": operator_name},
+            )
+
+            if not results or not results.get("ids"):
+                # 尝试模糊匹配
+                results = collection.get(
+                    where_document={"$contains": operator_name},
+                )
+
+            if not results or not results.get("ids"):
                 return []
 
-            # 从 Redis 获取详细信息
             bugs = []
-            for bug_id in list(bug_ids)[:limit]:
-                bug_key = f"bugfix:{bug_id}"
-                bug_data = self._redis.hgetall(bug_key)
-                if bug_data:
-                    bug = self._bug_from_redis(bug_data)
-                    if bug and bug.confidence >= min_confidence:
-                        bugs.append(bug)
+            for i, bug_id in enumerate(results["ids"][:limit]):
+                metadata = results["metadatas"][i] if results.get("metadatas") else {}
+                document = results["documents"][i] if results.get("documents") else ""
+
+                bug = self._bug_from_chroma(bug_id, metadata, document)
+                if bug and bug.confidence >= min_confidence:
+                    bugs.append(bug)
 
             return bugs
 
         except Exception as e:
-            logger.error(f"Failed to query bugs for operator {operator_name}: {e}")
+            logger.error(f"Failed to query bugs from ChromaDB for {operator_name}: {e}")
             return []
 
     async def _query_optimizations_by_operator(
@@ -343,7 +383,7 @@ class KnowledgeQueryService:
     ) -> List[OptimizationKnowledge]:
         """根据算子名称查询优化知识"""
         try:
-            # 从 Redis 获取该算子的所有 optimization IDs
+            # 先尝试从 Redis 获取该算子的所有 optimization IDs
             # 存储层使用 operator:{name}:opts:{type} 模式，需要用 scan_iter 匹配
             opt_ids = set()
             for key in self._redis.scan_iter(f"operator:{operator_name}:opts:*"):
@@ -356,23 +396,63 @@ class KnowledgeQueryService:
                     ids = self._redis.smembers(key)
                     opt_ids.update(ids)
 
-            if not opt_ids:
+            # 如果 Redis 有数据，从 Redis 获取详细信息
+            if opt_ids:
+                optimizations = []
+                for opt_id in list(opt_ids)[:limit]:
+                    opt_key = f"optimization:{opt_id}"
+                    opt_data = self._redis.hgetall(opt_key)
+                    if opt_data:
+                        opt = self._optimization_from_redis(opt_data)
+                        if opt and opt.confidence >= min_confidence:
+                            optimizations.append(opt)
+                return optimizations
+
+            # Redis 为空，fallback 到 ChromaDB 直接查询
+            return await self._query_optimizations_from_chroma(operator_name, min_confidence, limit)
+
+        except Exception as e:
+            logger.error(f"Failed to query optimizations for operator {operator_name}: {e}")
+            # 即使 Redis 出错，也尝试从 ChromaDB 查询
+            return await self._query_optimizations_from_chroma(operator_name, min_confidence, limit)
+
+    async def _query_optimizations_from_chroma(
+        self,
+        operator_name: str,
+        min_confidence: float = 0.5,
+        limit: int = 10,
+    ) -> List[OptimizationKnowledge]:
+        """从 ChromaDB 直接查询优化知识（Redis fallback）"""
+        try:
+            collection = self._chroma.get_collection("optimizations")
+
+            # 精确匹配 operator_id
+            results = collection.get(
+                where={"operator_id": operator_name},
+            )
+
+            if not results or not results.get("ids"):
+                # 尝试模糊匹配
+                results = collection.get(
+                    where_document={"$contains": operator_name},
+                )
+
+            if not results or not results.get("ids"):
                 return []
 
-            # 从 Redis 获取详细信息
             optimizations = []
-            for opt_id in list(opt_ids)[:limit]:
-                opt_key = f"optimization:{opt_id}"
-                opt_data = self._redis.hgetall(opt_key)
-                if opt_data:
-                    opt = self._optimization_from_redis(opt_data)
-                    if opt and opt.confidence >= min_confidence:
-                        optimizations.append(opt)
+            for i, opt_id in enumerate(results["ids"][:limit]):
+                metadata = results["metadatas"][i] if results.get("metadatas") else {}
+                document = results["documents"][i] if results.get("documents") else ""
+
+                opt = self._optimization_from_chroma(opt_id, metadata, document)
+                if opt and opt.confidence >= min_confidence:
+                    optimizations.append(opt)
 
             return optimizations
 
         except Exception as e:
-            logger.error(f"Failed to query optimizations for operator {operator_name}: {e}")
+            logger.error(f"Failed to query optimizations from ChromaDB for {operator_name}: {e}")
             return []
 
     async def _query_bugs_semantic(
@@ -395,7 +475,7 @@ class KnowledgeQueryService:
             # 获取 bug_fixes collection
             collection = self._chroma.get_collection("bug_fixes")
 
-            # 查询向量
+            # 查询向量（使用文本查询，ChromaDB 会自动处理）
             results = collection.query(
                 query_texts=[query],
                 n_results=limit,
@@ -406,12 +486,25 @@ class KnowledgeQueryService:
                 return []
 
             bugs = []
+            redis_available = False
+
+            # 尝试从 Redis 获取详细信息
             for i, bug_id in enumerate(results["ids"][0]):
                 metadata = results["metadatas"][0][i] if results.get("metadatas") else {}
                 bug_key = f"bugfix:{bug_id}"
                 bug_data = self._redis.hgetall(bug_key)
                 if bug_data:
+                    redis_available = True
                     bug = self._bug_from_redis(bug_data)
+                    if bug:
+                        bugs.append(bug)
+
+            # 如果 Redis 没有数据，使用 ChromaDB fallback
+            if not redis_available:
+                for i, bug_id in enumerate(results["ids"][0]):
+                    metadata = results["metadatas"][0][i] if results.get("metadatas") else {}
+                    document = results["documents"][0][i] if results.get("documents") else ""
+                    bug = self._bug_from_chroma(bug_id, metadata, document)
                     if bug:
                         bugs.append(bug)
 
@@ -558,6 +651,85 @@ class KnowledgeQueryService:
             logger.error(f"Failed to parse bug data: {e}")
             return None
 
+    def _bug_from_chroma(self, bug_id: str, metadata: dict, document: str) -> Optional[BugFixKnowledge]:
+        """从 ChromaDB 数据构建 BugFixKnowledge"""
+        try:
+            from .models import BugSeverity, BugCategory, ExtractionMethod
+
+            severity_str = metadata.get("type", "MINOR")
+            try:
+                severity = BugSeverity(severity_str)
+            except ValueError:
+                severity = BugSeverity.MINOR
+
+            category_str = "CORRECTNESS"
+            try:
+                category = BugCategory(category_str)
+            except ValueError:
+                category = BugCategory.CORRECTNESS
+
+            # 从 document 中提خت征（document 格式: "title | Root cause: ...")
+            symptom = ""
+            root_cause = None
+            fix_pattern = ""
+            trigger_conditions = []
+            workarounds = []
+            related_apis = []
+
+            if metadata.get("has_root_cause") and document:
+                parts = document.split("|")
+                if len(parts) >= 2:
+                    symptom = parts[0].strip()
+                    root_cause_text = parts[1] if len(parts) > 1 else ""
+                    if "Root cause:" in root_cause_text:
+                        root_cause = root_cause_text.split("Root cause:")[1].strip()
+
+            if metadata.get("has_fix_pattern"):
+                fix_pattern = f"参考 PR {metadata.get('source_pr', '')}"
+
+            if metadata.get("related_apis"):
+                try:
+                    import json
+                    related_apis = json.loads(metadata["related_apis"])
+                except:
+                    related_apis = []
+
+            if metadata.get("trigger_count"):
+                try:
+                    import json
+                    trigger_conditions = json.loads(metadata.get("trigger_conditions_json", "[]"))
+                except:
+                    pass
+
+            if metadata.get("workaround_count"):
+                try:
+                    import json
+                    workarounds = json.loads(metadata.get("workarounds_json", "[]"))
+                except:
+                    pass
+
+            return BugFixKnowledge(
+                bug_id=bug_id,
+                operator_id=metadata.get("operator_id", ""),
+                source_repo=metadata.get("source_repo", ""),
+                source_pr=metadata.get("source_pr", ""),
+                bug_title=metadata.get("bug_title", symptom or bug_id),
+                symptom=symptom,
+                severity=severity,
+                category=category,
+                root_cause=root_cause,
+                trigger_conditions=trigger_conditions,
+                fix_pattern=fix_pattern,
+                workarounds=workarounds,
+                related_apis=related_apis,
+                confidence=0.7,  # ChromaDB fallback 默认置信度
+                extraction_method=ExtractionMethod.LLM,
+                review_status="pending",
+            )
+        except Exception as e:
+            logger.error(f"Failed to parse bug from ChromaDB: {e}")
+            return None
+
     def _optimization_from_redis(self, data: dict) -> Optional[OptimizationKnowledge]:
         """从 Redis 数据构建 OptimizationKnowledge"""
         try:
@@ -588,6 +760,52 @@ class KnowledgeQueryService:
             )
         except Exception as e:
             logger.error(f"Failed to parse optimization data: {e}")
+            return None
+
+    def _optimization_from_chroma(self, opt_id: str, metadata: dict, document: str) -> Optional[OptimizationKnowledge]:
+        """从 ChromaDB 数据构建 OptimizationKnowledge"""
+        try:
+            from .models import ExtractionMethod
+
+            optimization_types = []
+            if metadata.get("optimization_types"):
+                try:
+                    import json
+                    optimization_types = json.loads(metadata["optimization_types"])
+                except:
+                    pass
+
+            related_apis = []
+            if metadata.get("related_apis"):
+                try:
+                    import json
+                    related_apis = json.loads(metadata["related_apis"])
+                except:
+                    pass
+
+            improvement_ratio = None
+            if metadata.get("improvement_ratio"):
+                try:
+                    improvement_ratio = float(metadata["improvement_ratio"])
+                except:
+                    pass
+
+            return OptimizationKnowledge(
+                opt_id=opt_id,
+                operator_id=metadata.get("operator_id", ""),
+                source_repo=metadata.get("source_repo", ""),
+                source_pr=metadata.get("source_pr", ""),
+                opt_title=metadata.get("opt_title", document.split("|")[0].strip() if document else opt_id),
+                optimization_type=optimization_types,
+                optimization_description=document,
+                improvement_ratio=improvement_ratio,
+                related_apis=related_apis,
+                confidence=0.7,  # ChromaDB fallback 默认置信度
+                extraction_method=ExtractionMethod.LLM,
+                review_status="pending",
+            )
+        except Exception as e:
+            logger.error(f"Failed to parse optimization from ChromaDB: {e}")
             return None
 
     def _api_from_chroma(self, api_id: str, metadata: dict, document: str) -> AscendCAPIDefinition:
