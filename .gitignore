@@ -130,6 +130,6 @@ dmypy.json
 *.swp
 
 # Data files (runtime generated)
-data/chroma_db/
+# data/chroma_db/ - 已迁移到 Git LFS
 data/checkpoints/
 data/cuda_apis_*.json
