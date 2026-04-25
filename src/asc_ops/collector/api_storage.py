@@ -81,56 +81,19 @@ class APIStorage:
             # 默认使用 mock 客户端 (保持向后兼容)
             self._redis = RedisClient(mock=True)
 
-        # Embedder 初始化
+        # Embedder 初始化（统一使用 get_embedder 单例）
         if embedder is not None:
             self._embedder = embedder
-        elif embedder_config is not None:
-            self._embedder = self._create_embedder(embedder_config)
         else:
-            # 尝试从全局配置创建
-            from ..config import get_config
-            config = get_config()
-            self._embedder = self._create_embedder(config.embedding)
+            # 使用全局单例 embedder
+            from .embedder import get_embedder
+            self._embedder = get_embedder()
 
         # 确保 collection 存在
         ensure_collection_exists(self._chroma, CollectionType.ASCEND_APIS)
 
         chroma_persist = chroma_db_path or "ephemeral"
         logger.info(f"API Storage initialized (chroma={chroma_persist}, redis_mock={self._redis.is_mock}, embedder={type(self._embedder).__name__})")
-
-    def _create_embedder(self, embedder_config: "EmbeddingConfig") -> Optional[APIEmbedder]:
-        """根据配置创建 Embedder"""
-        from .embedder import QwenEmbedder, MockEmbedder, APIEmbedder as STEmbedder
-
-        embedder_type = embedder_config.embedder_type.lower()
-
-        if embedder_type == "qwen":
-            logger.info(f"Creating QwenEmbedder: model={embedder_config.model_name}, path={embedder_config.model_path}, dim={embedder_config.embedding_dim}")
-            return QwenEmbedder(
-                model_name=embedder_config.model_name,
-                model_path=embedder_config.model_path,
-                embedding_dim=embedder_config.embedding_dim or 1024,
-                batch_size=embedder_config.batch_size,
-                device=embedder_config.device,
-            )
-        elif embedder_type == "sentence_transformers":
-            logger.info(f"Creating SentenceTransformerEmbedder: model={embedder_config.model_name}")
-            try:
-                return STEmbedder(
-                    model_name=embedder_config.model_name,
-                    model_path=embedder_config.model_path,
-                    embedding_dim=embedder_config.embedding_dim,
-                    batch_size=embedder_config.batch_size,
-                )
-            except ImportError:
-                logger.warning("sentence_transformers not available, using MockEmbedder")
-                return MockEmbedder(embedding_dim=embedder_config.embedding_dim or 384)
-        elif embedder_type == "mock":
-            logger.warning("Using MockEmbedder - not suitable for production")
-            return MockEmbedder(embedding_dim=embedder_config.embedding_dim or 384)
-        else:
-            logger.warning(f"Unknown embedder type '{embedder_type}', using MockEmbedder")
-            return MockEmbedder(embedding_dim=embedder_config.embedding_dim or 384)
 
     def store_api(
         self,

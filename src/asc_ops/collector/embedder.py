@@ -658,6 +658,7 @@ def get_embedder() -> "EmbedderInterface":
 
     统一从 .env 配置读取 EMBEDDING_* 环境变量创建 Embedder
     优先使用 QwenEmbedder，其次 sentence_transformers，最后 MockEmbedder
+    带有 fallback 逻辑：某类 embedder 初始化失败时自动降级
 
     Returns:
         EmbedderInterface 实例
@@ -668,25 +669,41 @@ def get_embedder() -> "EmbedderInterface":
         config = get_config().embedding
 
         embedder_type = config.embedder_type.lower()
+
         if embedder_type == "qwen":
-            _embedder_instance = QwenEmbedder(
-                model_name=config.model_name,
-                model_path=config.model_path,
-                embedding_dim=config.embedding_dim or 1024,
-                batch_size=config.batch_size,
-                device=config.device,
-            )
-            logger.info("Global embedder initialized: QwenEmbedder")
+            try:
+                _embedder_instance = QwenEmbedder(
+                    model_name=config.model_name,
+                    model_path=config.model_path,
+                    embedding_dim=config.embedding_dim or 1024,
+                    batch_size=config.batch_size,
+                    device=config.device,
+                )
+                logger.info("Global embedder initialized: QwenEmbedder")
+            except Exception as e:
+                logger.warning(f"QwenEmbedder failed: {e}, falling back to MockEmbedder")
+                _embedder_instance = MockEmbedder(embedding_dim=384)
+
         elif embedder_type == "sentence_transformers":
-            _embedder_instance = APIEmbedder(
-                model_name=config.model_name,
-                model_path=config.model_path,
-                embedding_dim=config.embedding_dim,
-                batch_size=config.batch_size,
-            )
-            logger.info("Global embedder initialized: APIEmbedder (sentence_transformers)")
+            try:
+                _embedder_instance = APIEmbedder(
+                    model_name=config.model_name,
+                    model_path=config.model_path,
+                    embedding_dim=config.embedding_dim,
+                    batch_size=config.batch_size,
+                )
+                logger.info("Global embedder initialized: APIEmbedder (sentence_transformers)")
+            except ImportError:
+                logger.warning("sentence_transformers not available, using MockEmbedder")
+                _embedder_instance = MockEmbedder(embedding_dim=config.embedding_dim or 384)
+            except Exception as e:
+                logger.warning(f"APIEmbedder failed: {e}, falling back to MockEmbedder")
+                _embedder_instance = MockEmbedder(embedding_dim=config.embedding_dim or 384)
+
         else:
-            _embedder_instance = MockEmbedder(embedding_dim=384)
+            if embedder_type != "mock":
+                logger.warning(f"Unknown embedder type '{embedder_type}', using MockEmbedder")
+            _embedder_instance = MockEmbedder(embedding_dim=config.embedding_dim or 384)
             logger.warning("Global embedder initialized: MockEmbedder (not suitable for production)")
 
     return _embedder_instance

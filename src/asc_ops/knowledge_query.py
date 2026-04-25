@@ -64,49 +64,15 @@ class KnowledgeQueryService:
             config=RankingConfig(),
             redis_client=self._redis
         )
-        # 初始化 Embedder 用于 API 语义查询（带 fallback）
-        self._embedder = self._create_embedder()
+        # 初始化 Embedder 用于 API 语义查询（统一使用 get_embedder 单例）
+        from .collector.embedder import get_embedder
+        self._embedder = get_embedder()
         self._is_mock_embedder = isinstance(self._embedder, MockEmbedder)
         self._citation_tracker = CitationTracker(self._redis)
         self._feedback_api = FeedbackAPI(self._redis, self._citation_tracker)
         self.base_url = base_url
 
         logger.info(f"KnowledgeQueryService initialized (embedder={type(self._embedder).__name__})")
-
-    def _create_embedder(self):
-        """根据配置创建 Embedder，带 fallback 逻辑"""
-        embedder_config = get_config().embedding
-        embedder_type = embedder_config.embedder_type.lower()
-
-        if embedder_type == "qwen":
-            try:
-                return QwenEmbedder(
-                    model_name=embedder_config.model_name,
-                    model_path=embedder_config.model_path,
-                    embedding_dim=embedder_config.embedding_dim or 1024,
-                    batch_size=embedder_config.batch_size or 8,
-                    device=embedder_config.device or "mps",
-                )
-            except Exception as e:
-                logger.warning(f"QwenEmbedder failed: {e}, falling back to MockEmbedder")
-                return MockEmbedder(embedding_dim=384)
-        elif embedder_type == "sentence_transformers":
-            try:
-                return STEmbedder(
-                    model_name=embedder_config.model_name,
-                    model_path=embedder_config.model_path,
-                    embedding_dim=embedder_config.embedding_dim,
-                    batch_size=embedder_config.batch_size,
-                )
-            except ImportError:
-                logger.warning("sentence_transformers not available, using MockEmbedder")
-                return MockEmbedder(embedding_dim=384)
-        elif embedder_type == "mock":
-            logger.warning("Using MockEmbedder - semantic search will return empty results")
-            return MockEmbedder(embedding_dim=384)
-        else:
-            logger.warning(f"Unknown embedder type '{embedder_type}', using MockEmbedder")
-            return MockEmbedder(embedding_dim=384)
 
     async def query_for_development(
         self,
