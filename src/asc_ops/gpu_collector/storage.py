@@ -40,6 +40,7 @@ class GPUStorage:
         chroma_client=None,
         redis_client=None,
         use_mock: bool = True,
+        embedder=None,
     ):
         """
         初始化 GPU 存储
@@ -48,10 +49,12 @@ class GPUStorage:
             chroma_client: ChromaDB 客户端 (None 时自动从环境初始化)
             redis_client: Redis 客户端 (None 时自动从环境初始化)
             use_mock: 是否使用 mock 模式
+            embedder: 向量化器，用于生成 embeddings（推荐使用 Qwen3-Embedding-0.6B）
         """
         self._chroma_client = chroma_client
         self._redis_client = redis_client
         self._use_mock = use_mock
+        self._embedder = embedder
 
         # Mock 数据存储
         self._kernel_store: Dict[str, GPUKernelKnowledge] = {}
@@ -115,13 +118,25 @@ class GPUStorage:
                 "cross_platform_mappings"
             )
 
-    def store_kernel(self, kernel: GPUKernelKnowledge) -> bool:
-        """存储 GPU Kernel 知识"""
+    def store_kernel(self, kernel: GPUKernelKnowledge, embedder=None) -> bool:
+        """
+        存储 GPU Kernel 知识
+
+        Args:
+            kernel: GPUKernelKnowledge 对象
+            embedder: 可选 embedder，用于生成 description_embedding
+        """
         try:
             if self._use_mock:
                 self._kernel_store[kernel.kernel_id] = kernel
                 logger.debug(f"Stored kernel (mock): {kernel.kernel_id}")
                 return True
+
+            # 生成 embedding（使用 embedder 避免 ChromaDB 默认 all-MiniLM-L6-v2）
+            kernel_embedding = None
+            effective_embedder = embedder or self._embedder
+            if effective_embedder and kernel.description:
+                kernel_embedding = effective_embedder.encode(kernel.description)
 
             # ChromaDB 存储
             # 注意：需要先将 kernel 转为 embedding 格式
@@ -134,6 +149,7 @@ class GPUStorage:
                 ids=[kernel.kernel_id],
                 metadatas=[metadata],
                 documents=[kernel.description],
+                embeddings=[kernel_embedding] if kernel_embedding else None,
             )
             return True
 
@@ -141,13 +157,25 @@ class GPUStorage:
             logger.error(f"Failed to store kernel: {e}")
             raise GPUStorageError(f"Kernel storage failed: {e}")
 
-    def store_api(self, api: GPUAPIInfo) -> bool:
-        """存储 GPU API 信息"""
+    def store_api(self, api: GPUAPIInfo, embedder=None) -> bool:
+        """
+        存储 GPU API 信息
+
+        Args:
+            api: GPUAPIInfo 对象
+            embedder: 可选 embedder，用于生成 description_embedding
+        """
         try:
             if self._use_mock:
                 self._api_store[api.api_id] = api
                 logger.debug(f"Stored API (mock): {api.api_id}")
                 return True
+
+            # 生成 embedding（使用 embedder 避免 ChromaDB 默认 all-MiniLM-L6-v2）
+            api_embedding = None
+            effective_embedder = embedder or self._embedder
+            if effective_embedder and api.description:
+                api_embedding = effective_embedder.encode(api.description)
 
             # ChromaDB 存储
             metadata = {
@@ -159,6 +187,7 @@ class GPUStorage:
                 ids=[api.api_id],
                 metadatas=[metadata],
                 documents=[api.description],
+                embeddings=[api_embedding] if api_embedding else None,
             )
             return True
 
@@ -287,10 +316,17 @@ class GPUStorage:
                     "source": source,
                 }
                 document = f"{mapping.gpu_api} -> {mapping.npu_api}: {mapping.adaptation_notes}"
+
+                # 生成 embedding（使用 embedder 避免 ChromaDB 默认 all-MiniLM-L6-v2）
+                doc_embedding = None
+                if self._embedder:
+                    doc_embedding = self._embedder.encode(document)
+
                 self._cross_platform_collection.upsert(
                     ids=[mapping.mapping_id],
                     metadatas=[metadata],
                     documents=[document],
+                    embeddings=[doc_embedding] if doc_embedding else None,
                 )
 
             logger.info(f"Stored cross-platform mapping: {mapping.mapping_id} (source={source})")

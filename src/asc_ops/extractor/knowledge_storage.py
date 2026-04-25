@@ -27,6 +27,7 @@ class KnowledgeStorage:
         self,
         chroma_client=None,
         redis_client=None,
+        embedder=None,
     ):
         """
         初始化知识存储
@@ -34,9 +35,11 @@ class KnowledgeStorage:
         Args:
             chroma_client: ChromaDB 客户端
             redis_client: Redis 客户端
+            embedder: 向量化器，用于生成 embeddings（推荐使用 Qwen3-Embedding-0.6B）
         """
         self._chroma = chroma_client
         self._redis = redis_client
+        self._embedder = embedder
 
         logger.info("KnowledgeStorage initialized")
 
@@ -67,6 +70,11 @@ class KnowledgeStorage:
             # 生成向量描述文本
             text_content = self._generate_bugfix_text(result)
 
+            # 生成 embedding（使用指定的 embedder，避免 ChromaDB 默认 all-MiniLM-L6-v2）
+            text_embedding = None
+            if self._embedder:
+                text_embedding = self._embedder.encode(text_content)
+
             # 存储到 ChromaDB (向量)
             if self._chroma:
                 self._chroma.upsert(
@@ -74,6 +82,7 @@ class KnowledgeStorage:
                     documents=[text_content],
                     metadatas=[self._bugfix_to_metadata(result)],
                     ids=[result.bug_id],
+                    embeddings=[text_embedding] if text_embedding else None,
                 )
 
             # 存储到 Redis (结构化数据)
@@ -114,6 +123,11 @@ class KnowledgeStorage:
             # 生成向量描述文本
             text_content = self._generate_optimization_text(result)
 
+            # 生成 embedding（使用指定的 embedder，避免 ChromaDB 默认 all-MiniLM-L6-v2）
+            text_embedding = None
+            if self._embedder:
+                text_embedding = self._embedder.encode(text_content)
+
             # 存储到 ChromaDB (向量)
             if self._chroma:
                 self._chroma.upsert(
@@ -121,6 +135,7 @@ class KnowledgeStorage:
                     documents=[text_content],
                     metadatas=[self._optimization_to_metadata(result)],
                     ids=[result.opt_id],
+                    embeddings=[text_embedding] if text_embedding else None,
                 )
 
             # 存储到 Redis (结构化数据)
