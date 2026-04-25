@@ -646,3 +646,54 @@ class MockEmbedder:
     def embed_apis_batch(self, apis: List[dict]) -> List[EmbeddingResult]:
         """批量生成伪嵌入"""
         return [self.embed_api(**api) for api in apis]
+
+
+# 全局 Embedder 单例
+_embedder_instance: Optional["EmbedderInterface"] = None
+
+
+def get_embedder() -> "EmbedderInterface":
+    """
+    获取全局 Embedder 实例（单例）
+
+    统一从 .env 配置读取 EMBEDDING_* 环境变量创建 Embedder
+    优先使用 QwenEmbedder，其次 sentence_transformers，最后 MockEmbedder
+
+    Returns:
+        EmbedderInterface 实例
+    """
+    global _embedder_instance
+    if _embedder_instance is None:
+        from ..config import get_config
+        config = get_config().embedding
+
+        embedder_type = config.embedder_type.lower()
+        if embedder_type == "qwen":
+            _embedder_instance = QwenEmbedder(
+                model_name=config.model_name,
+                model_path=config.model_path,
+                embedding_dim=config.embedding_dim or 1024,
+                batch_size=config.batch_size,
+                device=config.device,
+            )
+            logger.info("Global embedder initialized: QwenEmbedder")
+        elif embedder_type == "sentence_transformers":
+            _embedder_instance = APIEmbedder(
+                model_name=config.model_name,
+                model_path=config.model_path,
+                embedding_dim=config.embedding_dim,
+                batch_size=config.batch_size,
+            )
+            logger.info("Global embedder initialized: APIEmbedder (sentence_transformers)")
+        else:
+            _embedder_instance = MockEmbedder(embedding_dim=384)
+            logger.warning("Global embedder initialized: MockEmbedder (not suitable for production)")
+
+    return _embedder_instance
+
+
+def reset_embedder() -> None:
+    """重置 Embedder（主要用于测试）"""
+    global _embedder_instance
+    _embedder_instance = None
+    logger.debug("Embedder singleton reset")

@@ -107,15 +107,19 @@ class GPUStorage:
     def _init_collections(self):
         """初始化 ChromaDB collections"""
         if self._chroma_client is not None:
-            # 创建 collections
+            # 创建 collections，明确指定 embedding_function=None
+            # 避免 ChromaDB 默认使用 all-MiniLM-L6-v2 生成 embedding
             self._kernels_collection = self._chroma_client.get_or_create_collection(
-                "gpu_kernels"
+                "gpu_kernels",
+                embedding_function=None,
             )
             self._apis_collection = self._chroma_client.get_or_create_collection(
-                "gpu_apis"
+                "gpu_apis",
+                embedding_function=None,
             )
             self._cross_platform_collection = self._chroma_client.get_or_create_collection(
-                "cross_platform_mappings"
+                "cross_platform_mappings",
+                embedding_function=None,
             )
 
     def store_kernel(self, kernel: GPUKernelKnowledge, embedder=None) -> bool:
@@ -491,8 +495,16 @@ class GPUStorage:
 
         results = []
         if self._chroma_client is not None:
+            # 使用 embedder 生成查询向量，避免 ChromaDB 默认 all-MiniLM-L6-v2
+            embedder = self._embedder
+            if embedder is None:
+                from ..collector.embedder import get_embedder
+                embedder = get_embedder()
+
+            query_embedding = embedder.encode([query])[0]
+
             chroma_results = self._cross_platform_collection.query(
-                query_texts=[query],
+                query_embeddings=[query_embedding],
                 n_results=limit,
             )
             if chroma_results and chroma_results["ids"]:
@@ -540,8 +552,15 @@ class GPUStorage:
             return results[:limit]
 
         # ChromaDB 向量搜索
+        embedder = self._embedder
+        if embedder is None:
+            from ..collector.embedder import get_embedder
+            embedder = get_embedder()
+
+        query_embedding = embedder.encode([query])[0]
+
         results = self._kernels_collection.query(
-            query_texts=[query],
+            query_embeddings=[query_embedding],
             n_results=limit,
         )
         # 返回 mock 结果

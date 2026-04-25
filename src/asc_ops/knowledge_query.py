@@ -475,9 +475,11 @@ class KnowledgeQueryService:
             # 获取 bug_fixes collection
             collection = self._chroma.get_collection("bug_fixes")
 
-            # 查询向量（使用文本查询，ChromaDB 会自动处理）
+            # 使用 embedder 生成查询向量，避免 ChromaDB 默认 all-MiniLM-L6-v2
+            query_embedding = self._embedder.encode_api(query)
+
             results = collection.query(
-                query_texts=[query],
+                query_embeddings=[query_embedding],
                 n_results=limit,
                 where={"operator_id": operator_name} if operator_name else None,
             )
